@@ -95,11 +95,22 @@
   .go { width: 100%; padding: 18px; border: 0; border-radius: 14px; background: var(--accent); color: var(--on-accent); font-size: 1.2rem; font-weight: 700; letter-spacing: .04em; }
   .go:disabled { opacity: .4; }
 
+  .mode { width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 16px 18px; margin-bottom: 12px; border-radius: 14px;
+    border: 1px solid var(--accent); background: transparent; color: var(--accent); font-size: 1.05rem; font-weight: 700; letter-spacing: .03em; }
+  .mode small { display: block; color: var(--dim); font-weight: 400; font-size: .8rem; letter-spacing: 0; margin-top: 2px; text-align: left; }
+  .mode .go-arrow { font-size: 1.6rem; }
+  #sit { position: fixed; inset: 0; z-index: 5; display: none; overflow-y: auto; background: var(--bg); padding: env(safe-area-inset-top) 16px 0; -webkit-overflow-scrolling: touch; }
+  #sit.show { display: block; }
+  #sit main { padding-top: 12px; }
+  .back { padding: 8px 14px 8px 8px; border: 0; background: transparent; color: var(--accent); font-size: 1rem; font-weight: 600; }
+  .sithead { display: flex; align-items: center; gap: 6px; margin-bottom: 14px; }
+  .sithead h2 { margin: 0; font-size: 1.1rem; color: var(--accent); text-transform: uppercase; letter-spacing: .08em; }
+
   /* running screen */
-  #run { position: fixed; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center;
+  #run { position: fixed; inset: 0; z-index: 10; display: none; flex-direction: column; align-items: center; justify-content: center;
     padding: env(safe-area-inset-top) 20px env(safe-area-inset-bottom); text-align: center; transition: background .2s; }
   #run.show { display: flex; }
-  #run.work { background: #0f3d24; } #run.rest { background: #4a3106; } #run.ready { background: #131c29; } #run.done { background: #131c29; }
+  #run.work { background: #0f3d24; } #run.rest { background: #4a3106; } #run.ready { background: #131c29; } #run.call { background: #2b2410; } #run.done { background: #131c29; }
   #phase { font-size: 1.1rem; letter-spacing: .2em; text-transform: uppercase; opacity: .85; }
   #clock { font-size: min(28vw, 9rem); font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1; margin: 10px 0; }
   @media (min-width: 500px) { #clock { font-size: 9rem; } }
@@ -117,6 +128,8 @@
 <body>
 <main>
   <div class="brand"><img src="logo.png" alt="Little Beast logo"><h1>Little Beast Wrestling Trainer</h1></div>
+
+  <button class="mode" id="openSit"><span>Situational Live<small>Start live wrestling from a set position</small></span><span class="go-arrow">›</span></button>
 
   <div class="group">
     <div class="label">Position</div>
@@ -214,6 +227,38 @@
   </div>
 </main>
 
+<div id="sit">
+  <main>
+    <div class="sithead"><button class="back" id="sitBack">‹ Back</button><h2>Situational Live</h2></div>
+
+    <div class="group">
+      <div class="cmdhead">
+        <div class="label" id="sitLabel">Start positions</div>
+        <div class="cmdtools"><button class="small" id="sitAll">All</button><button class="small" id="sitNone">None</button></div>
+      </div>
+      <div class="chips" id="sitChips"></div>
+      <form class="add" id="sitAddForm">
+        <input id="sitAddInput" type="text" maxlength="40" placeholder="Add your own start position" autocomplete="off" autocapitalize="sentences" enterkeyhint="done">
+        <button type="submit">Add</button>
+      </form>
+      <div class="sub" style="margin-top:8px">Rounds go through the positions you pick, in order.</div>
+    </div>
+
+    <div class="group">
+      <div class="label">Timer</div>
+      <div class="row"><span>Round length</span><div class="step" data-o="sit" data-k="work" data-min="15" data-max="600" data-step="15"><button>−</button><output></output><button>+</button></div></div>
+      <div class="row"><span>Rest</span><div class="step" data-o="sit" data-k="rest" data-min="0" data-max="180" data-step="5"><button>−</button><output></output><button>+</button></div></div>
+      <div class="row"><span>Rounds</span><div class="step" data-o="sit" data-k="rounds" data-min="1" data-max="30" data-step="1"><button>−</button><output></output><button>+</button></div></div>
+      <div class="toggle" style="margin-top:6px"><span>Random order</span><input type="checkbox" id="sitRandom"></div>
+    </div>
+
+    <div class="bar">
+      <div class="hint" id="sitHint">Pick at least one start position.</div>
+      <button class="go" id="sitStart">START</button>
+    </div>
+  </main>
+</div>
+
 <div id="run" class="ready">
   <div id="phase">Get ready</div>
   <div id="clock">3</div>
@@ -247,6 +292,8 @@ const DEFAULT_ON = {
 };
 
 const DEFAULTS = { pos: "neutral", work: 30, rest: 15, rounds: 8, gap: 4, voice: true, beeps: true, vary: true, clips: true, rate: 1.1, voiceURI: "", rotate: false, rotSet: [...ORDER] };
+const SIT_OPTIONS = ["One man down", "Double", "Single", "High crotch", "Half", "Headlock"];
+const SIT_DEFAULTS = { on: [...SIT_OPTIONS], custom: [], work: 60, rest: 30, rounds: 6, random: false };
 const clone = o => JSON.parse(JSON.stringify(o));
 const read = (k, fb) => { try { return JSON.parse(localStorage.getItem(k)) ?? fb; } catch (_) { return fb; } };
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (_) {} };
@@ -256,6 +303,7 @@ if (!NAMES[S.pos]) S.pos = "neutral";                                   // "mix"
 S.cmds = { ...clone(DEFAULT_ON), ...(S.cmds || {}) };
 S.custom = { neutral: [], top: [], bottom: [], ...(S.custom || {}) };   // moves you typed in
 S.saved = Array.isArray(S.saved) ? S.saved : [];
+S.sit = { ...clone(SIT_DEFAULTS), ...(S.sit || {}) };
 const allMoves = pos => [...COMMANDS[pos], ...S.custom[pos]];
 // moves renamed in an update keep their on/off setting under the new name
 const RENAMES = { "Shot block": "Down Block" };
@@ -276,14 +324,14 @@ const synth = window.speechSynthesis;
 function renderSetup() {
   document.querySelectorAll("#pos button").forEach(b => b.classList.toggle("on", b.dataset.v === S.pos));
   document.querySelectorAll(".step").forEach(el => {
-    const k = el.dataset.k;
-    el.querySelector("output").textContent = k === "gap" ? S[k] + "s" : k === "rounds" ? S[k] : fmt(S[k]) + (S[k] < 60 ? "s" : "");
+    const k = el.dataset.k, v = (el.dataset.o === "sit" ? S.sit : S)[k];
+    el.querySelector("output").textContent = k === "gap" ? v + "s" : k === "rounds" ? v : fmt(v) + (v < 60 ? "s" : "");
   });
   $("#voice").checked = S.voice; $("#beeps").checked = S.beeps; $("#vary").checked = S.vary; $("#clips").checked = S.clips; $("#ownBox").classList.toggle("show", !S.clips); if (!S.clips) renderOwn();
   $("#rate").value = S.rate; $("#rateOut").textContent = (+S.rate).toFixed(2).replace(/0$/, "") + "×";
   $("#rotate").checked = S.rotate; $("#rotBox").classList.toggle("show", S.rotate);
   document.querySelectorAll("#rotSet button").forEach(b => b.classList.toggle("on", S.rotSet.includes(b.dataset.rot)));
-  renderCmds(); renderSaved(); renderHistory();
+  renderCmds(); renderSaved(); renderHistory(); renderSit();
 }
 
 function renderCmds() {
@@ -332,7 +380,7 @@ $("#addForm").onsubmit = e => {
 
 document.querySelectorAll(".step").forEach(el => {
   const [minus, plus] = el.querySelectorAll("button"); const k = el.dataset.k;
-  const bump = d => { S[k] = Math.min(+el.dataset.max, Math.max(+el.dataset.min, S[k] + d * +el.dataset.step)); save(); renderSetup(); };
+  const bump = d => { const o = el.dataset.o === "sit" ? S.sit : S; o[k] = Math.min(+el.dataset.max, Math.max(+el.dataset.min, o[k] + d * +el.dataset.step)); save(); renderSetup(); };
   minus.onclick = () => bump(-1); plus.onclick = () => bump(1);
 });
 document.querySelectorAll(".presets button").forEach(b => b.onclick = () => {
@@ -398,8 +446,9 @@ function renderHistory() {
 function logWorkout() {
   if (!st || st.logged || st.elapsed < 10) return;
   st.logged = true;
-  const rounds = st.phase === "done" ? S.rounds : st.phase === "rest" ? st.round : st.phase === "work" ? st.round - 1 : 0;
-  H.push({ t: Date.now(), plan: S.rotate ? "Rotation" : NAMES[S.pos], rounds, of: S.rounds, secs: st.elapsed });
+  const C = cfg();
+  const rounds = st.phase === "done" ? C.rounds : st.phase === "rest" ? st.round : st.phase === "work" || st.phase === "call" ? st.round - 1 : 0;
+  H.push({ t: Date.now(), plan: st.mode === "sit" ? "Situational live" : S.rotate ? "Rotation" : NAMES[S.pos], rounds, of: C.rounds, secs: st.elapsed });
   H = H.slice(-200); write("drillHistory", H); renderHistory();
 }
 
@@ -422,7 +471,7 @@ if (synth) { synth.onvoiceschanged = loadVoices; loadVoices(); }
 
 $("#resetAll").onclick = () => {
   if (!confirm("Reset timer, positions, moves and sound settings to the defaults? Saved workouts and history are kept.")) return;
-  const keep = S.saved; S = { ...DEFAULTS }; S.cmds = clone(DEFAULT_ON); S.custom = { neutral: [], top: [], bottom: [] }; S.saved = keep;
+  const keep = S.saved; S = { ...DEFAULTS }; S.cmds = clone(DEFAULT_ON); S.custom = { neutral: [], top: [], bottom: [] }; S.saved = keep; S.sit = clone(SIT_DEFAULTS);
   save(); renderSetup(); loadVoices(); window.scrollTo(0, 0);
 };
 $("#clearHist").onclick = () => { if (confirm("Clear your workout history?")) { H = []; write("drillHistory", H); renderHistory(); } };
@@ -438,11 +487,12 @@ function beep(freq, dur, vol = .4) {
   o.start(); o.stop(ctx.currentTime + dur);
 }
 function whistle() { beep(2600, .45, .35); setTimeout(() => beep(2600, .35, .35), 200); }
-function speak(text) {
-  if (!synth) return;
+function speak(text, done) {
+  if (!synth) return done && done();
   synth.cancel();
   const u = new SpeechSynthesisUtterance(text); u.rate = S.rate;
   const v = S.voiceURI && synth.getVoices().find(v => v.voiceURI === S.voiceURI); if (v) u.voice = v;
+  if (done) u.onend = u.onerror = () => done();
   synth.speak(u);
 }
 function say(text) { $("#cmd").textContent = text; if (S.voice) speak(text); }
@@ -464,7 +514,7 @@ async function loadOwn() {                                // your own recordings
 // a problem loading clips must never stop a workout from starting
 const loadPool = () => Promise.resolve().then(() => S.clips ? loadClips() : loadOwn()).catch(() => {});
 function playClip() {                                     // random clip that fits the rest, never the same one twice in a row
-  const pool = (S.clips ? clipBufs : ownBufs).filter(b => b.duration <= Math.max(1, S.rest - 1.5));
+  const pool = (S.clips ? clipBufs : ownBufs).filter(b => b.duration <= Math.max(1, cfg().rest - 1.5));
   if (!ctx || !pool.length) return false;
   let i; do { i = Math.floor(Math.random() * pool.length); } while (i === lastClip && pool.length > 1);
   lastClip = i;
@@ -528,6 +578,52 @@ $("#rec").onclick = async () => {
   $("#rec").textContent = "■ Stop"; $("#rec").classList.add("live"); recMsg("Recording… (5 seconds max)");
 };
 
+/* ---------- situational live: pick start positions, then wrestle live from each ---------- */
+const sitList = () => [...SIT_OPTIONS, ...S.sit.custom];
+S.sit.on = S.sit.on.filter(x => sitList().includes(x));
+const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+function renderSit() {
+  const on = S.sit.on, box = $("#sitChips"); box.innerHTML = "";
+  $("#sitLabel").textContent = `Start positions (${on.length}/${sitList().length})`;
+  const toggle = c => { S.sit.on = on.includes(c) ? on.filter(x => x !== c) : [...on, c]; save(); renderSit(); };
+  sitList().forEach(c => {
+    const custom = S.sit.custom.includes(c), b = document.createElement("button");
+    b.textContent = c; b.onclick = () => toggle(c);
+    if (!custom) { b.className = on.includes(c) ? "on" : ""; box.appendChild(b); return; }
+    const w = document.createElement("span"), x = document.createElement("button");
+    w.className = "custom" + (on.includes(c) ? " on" : ""); x.className = "x"; x.textContent = "×"; x.setAttribute("aria-label", "Remove " + c);
+    x.onclick = () => { S.sit.custom = S.sit.custom.filter(m => m !== c); S.sit.on = on.filter(m => m !== c); save(); renderSit(); };
+    w.append(b, x); box.appendChild(w);
+  });
+  $("#sitRandom").checked = S.sit.random;
+  $("#sitHint").style.display = on.length ? "none" : "block"; $("#sitStart").disabled = !on.length;
+}
+$("#openSit").onclick = () => { $("#sit").classList.add("show"); $("#sit").scrollTop = 0; };
+$("#sitBack").onclick = () => $("#sit").classList.remove("show");
+$("#sitAll").onclick = () => { S.sit.on = sitList(); save(); renderSit(); };
+$("#sitNone").onclick = () => { S.sit.on = []; save(); renderSit(); };
+$("#sitRandom").onchange = e => { S.sit.random = e.target.checked; save(); };
+$("#sitAddForm").onsubmit = e => {
+  e.preventDefault();
+  const v = $("#sitAddInput").value.trim().replace(/\s+/g, " ");
+  if (!v) return;
+  const hit = sitList().find(m => m.toLowerCase() === v.toLowerCase()), name = hit || v;
+  if (!hit) S.sit.custom.push(name);
+  if (!S.sit.on.includes(name)) S.sit.on.push(name);
+  $("#sitAddInput").value = ""; save(); renderSit();
+};
+// the start position for every round: in order through the picks, or shuffled (no back-to-back repeats)
+function sitOrder() {
+  const pool = sitList().filter(c => S.sit.on.includes(c)), out = [];
+  if (!S.sit.random) { for (let i = 0; i < S.sit.rounds; i++) out.push(pool[i % pool.length]); return out; }
+  let bag = [], last = "";
+  for (let i = 0; i < S.sit.rounds; i++) {
+    if (!bag.length) { bag = shuffle([...pool]); if (bag.length > 1 && bag[bag.length - 1] === last) bag.unshift(bag.pop()); }
+    last = bag.pop(); out.push(last);
+  }
+  return out;
+}
+
 /* ---------- workout engine ---------- */
 let st = null, tick = null, wake = null, lastCmd = "";
 const roundPos = round => S.rotate ? rotList()[(round - 1) % rotList().length] : S.pos;
@@ -538,33 +634,59 @@ const pick = () => {
   return lastCmd = c;
 };
 
+const cfg = () => st && st.mode === "sit" ? S.sit : S;   // the settings this workout runs on
 function setPhase(name, secs) {
+  const C = cfg(), sit = st.mode === "sit";
   st.phase = name; st.left = secs; st.sinceCall = 0; st.nextGap = nextGap();
-  if (name === "work") st.pos = roundPos(st.round);
+  if (name === "work" && !sit) st.pos = roundPos(st.round);
   $("#run").className = "show " + name;
   $("#phase").textContent = { ready: "Get ready", work: "Work", rest: "Rest", done: "Done" }[name];
-  $("#round").textContent = name === "ready" ? "" : `Round ${st.round} of ${S.rounds}` + (S.rotate && name === "work" ? ` · ${NAMES[st.pos]}` : "");
+  $("#round").textContent = name === "ready" ? "" : `Round ${st.round} of ${C.rounds}` +
+    (name === "work" && sit ? ` · ${st.order[st.round - 1]}` : name === "work" && S.rotate ? ` · ${NAMES[st.pos]}` : "");
   $("#cmd").textContent = "";
-  if (name === "work") { whistle(); say(NAMES[st.pos]); }
-  if (name === "rest") { beep(880, .3); say("Rest"); if (S.rest >= 5) setTimeout(() => { if (st && st.phase === "rest" && !st.paused) playClip(); }, 1200); if (S.rotate && st.round < S.rounds) $("#cmd").textContent = "Next: " + NAMES[roundPos(st.round + 1)]; }
+  if (name === "work" && !sit) { whistle(); say(NAMES[st.pos]); }
+  if (name === "rest") {
+    beep(880, .3); say("Rest");
+    if (C.rest >= 5) setTimeout(() => { if (st && st.phase === "rest" && !st.paused) playClip(); }, 1200);
+    if (st.round < C.rounds) { if (sit) $("#cmd").textContent = "Next: " + st.order[st.round]; else if (S.rotate) $("#cmd").textContent = "Next: " + NAMES[roundPos(st.round + 1)]; }
+  }
   if (name === "done") { whistle(); say("Workout complete"); clearInterval(tick); releaseWake(); $("#pause").style.display = "none"; logWorkout(); }
   draw();
+}
+// Situational live: say the start position, then blow the whistle and start the clock
+function announce(go) {
+  const label = st.order[st.round - 1], id = st.callId = (st.callId || 0) + 1;
+  st.go = go; st.phase = "call";
+  $("#run").className = "show call"; $("#phase").textContent = "Get set";
+  $("#clock").textContent = fmt(S.sit.work); $("#cmd").textContent = "Start from " + label;
+  $("#round").textContent = `Round ${st.round} of ${S.sit.rounds} · Wrestlers ready`;
+  let fired = false;
+  const proceed = () => { if (fired || !st || st.callId !== id || st.paused) return; fired = true; go(); };
+  const text = `Start from ${label}. Wrestlers ready.`;
+  if (S.voice && synth) { speak(text, () => setTimeout(proceed, 400)); setTimeout(proceed, 9000); }   // 9s in case the phone never reports the speech ended
+  else setTimeout(proceed, 2500);
+}
+function beginWork() {                                   // every round starts here
+  const C = cfg();
+  if (st.mode === "sit") return announce(() => { whistle(); setPhase("work", C.work); });
+  setPhase("work", C.work);
 }
 function draw() { $("#clock").textContent = st.phase === "done" ? "✓" : fmt(st.left); }
 
 function step() {
-  if (st.paused) return;
+  if (st.paused || st.phase === "call") return;
+  const C = cfg();
   st.left--; st.sinceCall++;
   if (st.phase !== "ready") st.elapsed++;
   if (st.left <= 3 && st.left > 0) beep(660, .12);
-  if (st.phase === "work" && st.sinceCall >= st.nextGap && st.left > 1) { st.sinceCall = 0; st.nextGap = nextGap(); say(pick()); }
+  if (st.phase === "work" && st.mode !== "sit" && st.sinceCall >= st.nextGap && st.left > 1) { st.sinceCall = 0; st.nextGap = nextGap(); say(pick()); }
   if (st.left <= 0) {
-    if (st.phase === "ready") { st.round = 1; return setPhase("work", S.work); }
+    if (st.phase === "ready") { st.round = 1; return beginWork(); }
     if (st.phase === "work") {
-      if (st.round >= S.rounds) return setPhase("done", 0);
-      return S.rest > 0 ? setPhase("rest", S.rest) : (st.round++, setPhase("work", S.work));
+      if (st.round >= C.rounds) return setPhase("done", 0);
+      return C.rest > 0 ? setPhase("rest", C.rest) : (st.round++, beginWork());
     }
-    if (st.phase === "rest") { st.round++; return setPhase("work", S.work); }
+    if (st.phase === "rest") { st.round++; return beginWork(); }
   }
   draw();
 }
@@ -573,18 +695,24 @@ async function getWake() { try { wake = await navigator.wakeLock?.request("scree
 function releaseWake() { try { wake?.release(); } catch (_) {} wake = null; }
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && st && st.phase !== "done") getWake(); });
 
-$("#start").onclick = () => {
+function beginWorkout(mode) {
   ctx = ctx || new (window.AudioContext || window.webkitAudioContext)();
   ctx.resume(); loadPool();
   if (S.voice && synth) synth.speak(new SpeechSynthesisUtterance(""));  // unlock iOS speech
-  st = { phase: "ready", left: 3, round: 0, sinceCall: 0, nextGap: S.gap, paused: false, elapsed: 0, logged: false, pos: S.pos };
+  st = { mode, phase: "ready", left: 3, round: 0, sinceCall: 0, nextGap: S.gap, paused: false, elapsed: 0, logged: false, pos: S.pos, order: mode === "sit" ? sitOrder() : [] };
   delete $("#run").dataset.big; $("#big").textContent = "Big view";
   $("#pause").style.display = ""; $("#pause").textContent = "Pause";
   $("#run").className = "show ready"; $("#phase").textContent = "Get ready"; $("#round").textContent = ""; $("#cmd").textContent = "";
   draw(); getWake();
   clearInterval(tick); tick = setInterval(step, 1000);
+}
+$("#start").onclick = () => beginWorkout("drill");
+$("#sitStart").onclick = () => beginWorkout("sit");
+$("#pause").onclick = () => {
+  st.paused = !st.paused; $("#pause").textContent = st.paused ? "Resume" : "Pause";
+  if (st.paused) { synth?.cancel(); st.callId = (st.callId || 0) + 1; }    // drop any announcement in progress
+  else if (st.phase === "call") announce(st.go);                            // resume: say the call again
 };
-$("#pause").onclick = () => { st.paused = !st.paused; $("#pause").textContent = st.paused ? "Resume" : "Pause"; if (st.paused) synth?.cancel(); };
 $("#big").onclick = () => {
   const run = $("#run"), on = !("big" in run.dataset);
   if (on) run.dataset.big = ""; else delete run.dataset.big;
