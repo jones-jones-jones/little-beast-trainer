@@ -11,36 +11,36 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" type="image/png" href="favicon.png">
-<title>Little Beast's Stance and Motion Trainer</title>
+<title>Little Beast Wrestling Trainer</title>
 <style>
   :root {
     --bg: #131c29; --panel: #1b2738; --line: #2f3f57; --text: #f3efe2; --dim: #93a0b4;
-    --work: #2ecc71; --rest: #f5a623; --accent: #dcb02c; --on-accent: #131c29;
+    --work: #2ecc71; --rest: #f5a623; --accent: #dcb02c; --on-accent: #131c29; --warn: #ff7b72;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+  html, body { margin: 0; background: var(--bg); color: var(--text);
     font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
     -webkit-user-select: none; user-select: none; overscroll-behavior: none; }
-  body { padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom); display: flex; flex-direction: column; }
-  main { flex: 1; display: flex; flex-direction: column; max-width: 480px; width: 100%; margin: 0 auto; padding: 16px 0; }
+  body { padding: env(safe-area-inset-top) 16px 0; }
+  main { max-width: 480px; width: 100%; margin: 0 auto; padding: 16px 0 0; }
   .brand { display: flex; align-items: center; gap: 12px; margin: 0 0 16px; }
   .brand img { width: 52px; height: 52px; border-radius: 12px; }
-  h1 { font-size: .95rem; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); margin: 0; font-weight: 700; line-height: 1.25; }
+  h1 { font-size: 1.05rem; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); margin: 0; font-weight: 700; line-height: 1.25; }
   .group { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 14px; margin-bottom: 12px; }
   .label { font-size: .75rem; color: var(--dim); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 10px; }
   .seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
   .seg button { padding: 12px 4px; border-radius: 10px; border: 1px solid var(--line); background: transparent; color: var(--text); font-size: .95rem; font-weight: 600; }
   .seg button.on { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
-  .row { display: flex; align-items: center; justify-content: space-between; padding: 6px 0; }
+  .row { display: flex; align-items: center; justify-content: space-between; padding: 6px 0; gap: 10px; }
   .row + .row { border-top: 1px solid var(--line); }
   .row span { font-size: 1rem; }
   .step { display: flex; align-items: center; gap: 14px; }
   .step button { width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--line); background: transparent; color: var(--text); font-size: 1.3rem; }
   .step output { min-width: 56px; text-align: center; font-variant-numeric: tabular-nums; font-size: 1.15rem; font-weight: 600; }
-.cmdhead { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .cmdhead { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; gap: 8px; }
   .cmdhead .label { margin: 0; }
   .cmdtools { display: flex; gap: 6px; }
-  .cmdtools button { padding: 6px 12px; border-radius: 16px; border: 1px solid var(--line); background: transparent; color: var(--dim); font-size: .8rem; }
+  .small { padding: 6px 12px; border-radius: 16px; border: 1px solid var(--line); background: transparent; color: var(--dim); font-size: .8rem; }
   .chips { display: flex; flex-wrap: wrap; gap: 8px; }
   .chips button { padding: 9px 13px; border-radius: 20px; border: 1px solid var(--line); background: transparent; color: var(--dim); font-size: .9rem; }
   .chips button.on { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
@@ -49,16 +49,40 @@
   .chips .custom button { border: 0; background: transparent; color: inherit; padding: 9px 4px 9px 13px; font: inherit; font-weight: inherit; }
   .chips .custom button.x { padding: 9px 12px 9px 4px; opacity: .7; }
   .add { display: flex; gap: 8px; margin-top: 12px; }
-  .add input { flex: 1; min-width: 0; padding: 11px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--text);
+  .add input, .field { flex: 1; min-width: 0; padding: 11px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--text);
     font-size: 16px; -webkit-user-select: text; user-select: text; }
   .add button { padding: 0 18px; border-radius: 10px; border: 0; background: var(--accent); color: var(--on-accent); font-size: .95rem; font-weight: 600; }
-  .hint { color: #ff7b72; font-size: .85rem; margin-top: 10px; display: none; }
-  .go:disabled { opacity: .4; }
+  select.field { flex: 0 1 62%; -webkit-user-select: none; user-select: none; }
+  .hint { color: var(--warn); font-size: .85rem; margin-top: 10px; display: none; }
   .presets { display: flex; gap: 8px; flex-wrap: wrap; }
   .presets button { padding: 9px 14px; border-radius: 20px; border: 1px solid var(--line); background: transparent; color: var(--text); font-size: .85rem; }
-  .toggle { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; }
-  .toggle input { width: 48px; height: 28px; accent-color: var(--accent); }
-  .go { margin-top: auto; padding: 18px; border: 0; border-radius: 14px; background: var(--accent); color: var(--on-accent); font-size: 1.2rem; font-weight: 700; letter-spacing: .04em; }
+  .toggle { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; gap: 10px; }
+  .toggle input[type=checkbox] { width: 48px; height: 28px; accent-color: var(--accent); flex: none; }
+  .toggle input[type=range] { flex: 1; max-width: 45%; accent-color: var(--accent); }
+  .toggle output { min-width: 42px; text-align: right; color: var(--dim); font-variant-numeric: tabular-nums; }
+  .sub { color: var(--dim); font-size: .8rem; margin-top: 2px; }
+  .rot { display: none; margin: 4px 0 8px; }
+  .rot.show { display: block; }
+  .saved-item { display: flex; align-items: center; gap: 8px; padding: 8px 0; }
+  .saved-item + .saved-item { border-top: 1px solid var(--line); }
+  .saved-item .meta { flex: 1; min-width: 0; }
+  .saved-item .name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .saved-item .load { padding: 8px 14px; border-radius: 16px; border: 0; background: var(--accent); color: var(--on-accent); font-weight: 600; }
+  .saved-item .del { width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--line); background: transparent; color: var(--dim); font-size: 1.1rem; }
+  .empty { color: var(--dim); font-size: .9rem; }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px; text-align: center; }
+  .stats div { background: var(--bg); border-radius: 10px; padding: 10px 4px; }
+  .stats b { display: block; font-size: 1.3rem; color: var(--accent); font-variant-numeric: tabular-nums; }
+  .stats span { font-size: .7rem; color: var(--dim); text-transform: uppercase; letter-spacing: .05em; }
+  .hist { font-size: .88rem; padding: 6px 0; display: flex; justify-content: space-between; gap: 8px; }
+  .hist + .hist { border-top: 1px solid var(--line); }
+  .hist span:last-child { color: var(--dim); text-align: right; }
+  .danger { color: var(--warn); }
+  .tools { display: flex; gap: 8px; flex-wrap: wrap; margin: 6px 0 20px; }
+  .bar { position: sticky; bottom: 0; padding: 14px 0 calc(14px + env(safe-area-inset-bottom)); background: linear-gradient(to bottom, transparent, var(--bg) 22%); }
+  .bar .hint { margin: 0 0 8px; text-align: center; }
+  .go { width: 100%; padding: 18px; border: 0; border-radius: 14px; background: var(--accent); color: var(--on-accent); font-size: 1.2rem; font-weight: 700; letter-spacing: .04em; }
+  .go:disabled { opacity: .4; }
 
   /* running screen */
   #run { position: fixed; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center;
@@ -69,14 +93,19 @@
   #clock { font-size: min(28vw, 9rem); font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1; margin: 10px 0; }
   @media (min-width: 500px) { #clock { font-size: 9rem; } }
   #cmd { font-size: 2rem; font-weight: 700; min-height: 2.6rem; }
-  #round { color: var(--dim); margin-top: 8px; font-size: 1rem; }
-  .ctrls { display: flex; gap: 14px; margin-top: 40px; }
-  .ctrls button { padding: 14px 26px; border-radius: 12px; border: 1px solid rgba(255,255,255,.3); background: rgba(0,0,0,.25); color: #fff; font-size: 1rem; font-weight: 600; }
+  #round { color: rgba(255,255,255,.65); margin-top: 8px; font-size: 1rem; }
+  .ctrls { display: flex; gap: 12px; margin-top: 40px; flex-wrap: wrap; justify-content: center; }
+  .ctrls button { padding: 14px 22px; border-radius: 12px; border: 1px solid rgba(255,255,255,.3); background: rgba(0,0,0,.25); color: #fff; font-size: 1rem; font-weight: 600; }
+  /* big view: giant clock and call-out for reading across the mat */
+  #run[data-big] #clock { font-size: min(50vw, 48vh); }
+  #run[data-big] #cmd { font-size: min(11vw, 12vh); line-height: 1.1; }
+  #run[data-big] #phase, #run[data-big] #round { font-size: 1.3rem; }
+  #run[data-big] .ctrls { margin-top: 20px; }
 </style>
 </head>
 <body>
 <main>
-  <div class="brand"><img src="logo.png" alt="Little Beast logo"><h1>Little Beast's Stance and Motion Trainer</h1></div>
+  <div class="brand"><img src="logo.png" alt="Little Beast logo"><h1>Little Beast Wrestling Trainer</h1></div>
 
   <div class="group">
     <div class="label">Position</div>
@@ -90,7 +119,7 @@
   <div class="group">
     <div class="cmdhead">
       <div class="label" id="cmdlabel">Commands</div>
-      <div class="cmdtools"><button id="cmdAll">All</button><button id="cmdNone">None</button><button id="cmdReset">Reset</button></div>
+      <div class="cmdtools"><button class="small" id="cmdAll">All</button><button class="small" id="cmdNone">None</button><button class="small" id="cmdReset">Reset</button></div>
     </div>
     <div class="chips" id="chips"></div>
     <form class="add" id="addForm">
@@ -109,6 +138,18 @@
   </div>
 
   <div class="group">
+    <div class="toggle"><div><div>Rotate positions each round</div><div class="sub">Round 1 uses the first position, round 2 the next, and so on.</div></div><input type="checkbox" id="rotate"></div>
+    <div class="rot" id="rotBox">
+      <div class="label" style="margin-top:8px">Rotate through</div>
+      <div class="seg" id="rotSet">
+        <button data-rot="neutral">Stance and Motion</button>
+        <button data-rot="top">Top</button>
+        <button data-rot="bottom">Bottom</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="group">
     <div class="label">Presets</div>
     <div class="presets">
       <button data-p="10,10,10">Whistle starts 10/10</button>
@@ -119,11 +160,40 @@
   </div>
 
   <div class="group">
-    <div class="toggle"><span>Voice call-outs</span><input type="checkbox" id="voice"></div>
-    <div class="toggle"><span>Whistle &amp; beeps</span><input type="checkbox" id="beeps"></div>
+    <div class="label">Saved workouts</div>
+    <div id="saved"></div>
+    <form class="add" id="saveForm">
+      <input id="saveName" type="text" maxlength="40" placeholder="Name this workout" autocomplete="off" enterkeyhint="done">
+      <button type="submit">Save</button>
+    </form>
+    <div class="sub" style="margin-top:8px">Saves the position, timer, rotation and your move choices.</div>
   </div>
 
-  <button class="go" id="start">START</button>
+  <div class="group">
+    <div class="label">Sound</div>
+    <div class="toggle"><span>Voice call-outs</span><input type="checkbox" id="voice"></div>
+    <div class="toggle"><span>Whistle &amp; beeps</span><input type="checkbox" id="beeps"></div>
+    <div class="toggle"><div><div>Vary the timing</div><div class="sub">Call-outs land a little early or late so you can't predict them.</div></div><input type="checkbox" id="vary"></div>
+    <div class="toggle"><span>Speed</span><input type="range" id="rate" min="0.7" max="1.5" step="0.05"><output id="rateOut"></output></div>
+    <div class="toggle"><span>Voice</span><select class="field" id="voiceSel"><option value="">Default voice</option></select></div>
+    <div class="tools" style="margin:8px 0 0"><button class="small" id="testVoice">Test voice</button></div>
+  </div>
+
+  <div class="group">
+    <div class="label">History</div>
+    <div class="stats"><div><b id="stTotal">0</b><span>Workouts</span></div><div><b id="stWeek">0</b><span>This week</span></div><div><b id="stStreak">0</b><span>Day streak</span></div></div>
+    <div id="hist"></div>
+  </div>
+
+  <div class="tools">
+    <button class="small danger" id="resetAll">Reset settings</button>
+    <button class="small danger" id="clearHist">Clear history</button>
+  </div>
+
+  <div class="bar">
+    <div class="hint" id="startHint"></div>
+    <button class="go" id="start">START</button>
+  </div>
 </main>
 
 <div id="run" class="ready">
@@ -131,17 +201,18 @@
   <div id="clock">3</div>
   <div id="cmd"></div>
   <div id="round"></div>
-  <div class="ctrls"><button id="pause">Pause</button><button id="stop">End</button></div>
+  <div class="ctrls"><button id="pause">Pause</button><button id="big">Big view</button><button id="stop">End</button></div>
 </div>
 
 <script>
+const ORDER = ["neutral", "top", "bottom"];
 const NAMES = { neutral: "Stance and Motion", top: "Top", bottom: "Bottom" };
 // Each list holds only moves that belong to that position.
 const COMMANDS = {
   // on your feet: stance, motion, hand fighting, setups, shots, finishes, and defending shots
   neutral: ["Stance", "Circle", "Shuffle", "Switch stance", "Backstep", "Level change", "Hand fight", "Inside tie", "Collar tie", "Wrist control",
             "Underhook", "Overhook", "Snap down", "Push pull", "Arm drag", "Drop step", "Penetration step", "Shot", "Re-shot", "Single leg", "Double leg",
-            "High crotch", "Ankle pick", "Duck under", "Head inside", "Finish the leg", "Front headlock", "Go behind", "Sprawl"],
+            "High crotch", "Ankle pick", "Duck under", "Head inside", "Finish the leg", "Front headlock", "Go behind", "Sprawl", "Pepsi"],
   // on top: control, rides, breakdowns, turns, and finishing the pin
   top:     ["Tight waist", "Chop", "Cut", "Cross face", "Half nelson", "Power half", "Break him down", "Hips heavy", "Ride", "Spiral ride", "Leg ride",
             "Far ankle", "Wrist control", "Clear the leg", "Gut wrench", "Cradle", "Tilt", "Arm bar", "Turk", "Stack", "Back step", "Chop and drive", "Look for the turn"],
@@ -151,20 +222,29 @@ const COMMANDS = {
 };
 // what's switched on before you change anything
 const DEFAULT_ON = {
-  neutral: ["Stance", "Circle", "Level change", "Hand fight", "Snap down", "Push pull", "Shot", "Re-shot", "Duck under", "Head inside", "Finish the leg", "Sprawl"],
+  neutral: ["Stance", "Circle", "Level change", "Hand fight", "Snap down", "Push pull", "Shot", "Re-shot", "Duck under", "Head inside", "Finish the leg", "Sprawl", "Pepsi"],
   top:     ["Tight waist", "Chop", "Cut", "Cross face", "Half nelson", "Break him down", "Hips heavy", "Ride", "Clear the leg", "Look for the turn"],
   bottom:  ["Build a base", "Hand control", "Break the grip", "Stand up", "Sit out", "Switch", "Hip heist", "Tripod", "Granby roll", "Escape"]
 };
 
-const DEFAULTS = { pos: "neutral", work: 30, rest: 15, rounds: 8, gap: 4, voice: true, beeps: true };
-let S = { ...DEFAULTS, ...JSON.parse(localStorage.getItem("drill") || "{}") };
+const DEFAULTS = { pos: "neutral", work: 30, rest: 15, rounds: 8, gap: 4, voice: true, beeps: true, vary: true, rate: 1.1, voiceURI: "", rotate: false, rotSet: [...ORDER] };
+const clone = o => JSON.parse(JSON.stringify(o));
+const read = (k, fb) => { try { return JSON.parse(localStorage.getItem(k)) ?? fb; } catch (_) { return fb; } };
+const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (_) {} };
+
+let S = { ...DEFAULTS, ...read("drill", {}) };
 if (!NAMES[S.pos]) S.pos = "neutral";                                   // "mix" was removed
-S.cmds = { ...JSON.parse(JSON.stringify(DEFAULT_ON)), ...(S.cmds || {}) };
+S.cmds = { ...clone(DEFAULT_ON), ...(S.cmds || {}) };
 S.custom = { neutral: [], top: [], bottom: [], ...(S.custom || {}) };   // moves you typed in
+S.saved = Array.isArray(S.saved) ? S.saved : [];
+if (!S.addedPepsi) { S.addedPepsi = true; if (!S.cmds.neutral.includes("Pepsi")) S.cmds.neutral.push("Pepsi"); }   // one-time: switch on the new move
 const allMoves = pos => [...COMMANDS[pos], ...S.custom[pos]];
-const save = () => localStorage.setItem("drill", JSON.stringify(S));
+let H = read("drillHistory", []);
+const save = () => write("drill", S);
 const $ = s => document.querySelector(s);
 const fmt = s => s >= 60 ? Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0") : String(s);
+const rotList = () => ORDER.filter(p => S.rotSet.includes(p));
+const synth = window.speechSynthesis;
 
 /* ---------- setup screen ---------- */
 function renderSetup() {
@@ -173,9 +253,13 @@ function renderSetup() {
     const k = el.dataset.k;
     el.querySelector("output").textContent = k === "gap" ? S[k] + "s" : k === "rounds" ? S[k] : fmt(S[k]) + (S[k] < 60 ? "s" : "");
   });
-  $("#voice").checked = S.voice; $("#beeps").checked = S.beeps;
-  renderCmds();
+  $("#voice").checked = S.voice; $("#beeps").checked = S.beeps; $("#vary").checked = S.vary;
+  $("#rate").value = S.rate; $("#rateOut").textContent = (+S.rate).toFixed(2).replace(/0$/, "") + "×";
+  $("#rotate").checked = S.rotate; $("#rotBox").classList.toggle("show", S.rotate);
+  document.querySelectorAll("#rotSet button").forEach(b => b.classList.toggle("on", S.rotSet.includes(b.dataset.rot)));
+  renderCmds(); renderSaved(); renderHistory();
 }
+
 function renderCmds() {
   const on = S.cmds[S.pos], list = allMoves(S.pos);
   $("#cmdlabel").textContent = `${NAMES[S.pos]} commands (${on.length}/${list.length})`;
@@ -191,22 +275,35 @@ function renderCmds() {
     w.append(b, x); $("#chips").appendChild(w);
   });
   $("#hint").style.display = on.length ? "none" : "block";
-  $("#start").disabled = !on.length;
+  updateStart();
 }
+
+// what the workout would use: the chosen position, or every position in the rotation
+function usedPositions() { return S.rotate ? rotList() : [S.pos]; }
+function updateStart() {
+  const used = usedPositions();
+  let msg = "";
+  if (!used.length) msg = "Pick at least one position to rotate through.";
+  else { const empty = used.find(p => !S.cmds[p].length); if (empty) msg = `Pick at least one ${NAMES[empty]} command.`; }
+  $("#startHint").textContent = msg; $("#startHint").style.display = msg ? "block" : "none";
+  $("#start").disabled = !!msg;
+}
+
+$("#pos").onclick = e => { if (e.target.dataset.v) { S.pos = e.target.dataset.v; save(); renderSetup(); } };
+$("#cmdAll").onclick = () => { S.cmds[S.pos] = allMoves(S.pos); save(); renderCmds(); };
+$("#cmdNone").onclick = () => { S.cmds[S.pos] = []; save(); renderCmds(); };
+$("#cmdReset").onclick = () => { S.cmds[S.pos] = [...DEFAULT_ON[S.pos]]; save(); renderCmds(); };
 $("#addForm").onsubmit = e => {
   e.preventDefault();
   const v = $("#addInput").value.trim().replace(/\s+/g, " ");
   if (!v) return;
-  const list = allMoves(S.pos), hit = list.find(m => m.toLowerCase() === v.toLowerCase());
+  const hit = allMoves(S.pos).find(m => m.toLowerCase() === v.toLowerCase());
   const name = hit || v;
   if (!hit) S.custom[S.pos].push(name);
   if (!S.cmds[S.pos].includes(name)) S.cmds[S.pos].push(name);   // a new move starts switched on
   $("#addInput").value = ""; save(); renderCmds();
 };
-$("#cmdAll").onclick = () => { S.cmds[S.pos] = allMoves(S.pos); save(); renderCmds(); };
-$("#cmdNone").onclick = () => { S.cmds[S.pos] = []; save(); renderCmds(); };
-$("#cmdReset").onclick = () => { S.cmds[S.pos] = [...DEFAULT_ON[S.pos]]; save(); renderCmds(); };
-$("#pos").onclick = e => { if (e.target.dataset.v) { S.pos = e.target.dataset.v; save(); renderSetup(); } };
+
 document.querySelectorAll(".step").forEach(el => {
   const [minus, plus] = el.querySelectorAll("button"); const k = el.dataset.k;
   const bump = d => { S[k] = Math.min(+el.dataset.max, Math.max(+el.dataset.min, S[k] + d * +el.dataset.step)); save(); renderSetup(); };
@@ -215,8 +312,93 @@ document.querySelectorAll(".step").forEach(el => {
 document.querySelectorAll(".presets button").forEach(b => b.onclick = () => {
   [S.work, S.rest, S.rounds] = b.dataset.p.split(",").map(Number); save(); renderSetup();
 });
+$("#rotate").onchange = e => { S.rotate = e.target.checked; save(); renderSetup(); };
+$("#rotSet").onclick = e => {
+  const p = e.target.dataset.rot; if (!p) return;
+  S.rotSet = S.rotSet.includes(p) ? S.rotSet.filter(x => x !== p) : [...S.rotSet, p]; save(); renderSetup();
+};
+
+/* ---------- saved workouts ---------- */
+const SNAP = ["pos", "work", "rest", "rounds", "gap", "rotate", "rotSet", "vary"];
+function renderSaved() {
+  const box = $("#saved"); box.innerHTML = "";
+  if (!S.saved.length) { box.innerHTML = '<div class="empty">Nothing saved yet.</div>'; return; }
+  S.saved.forEach((w, i) => {
+    const row = document.createElement("div"); row.className = "saved-item";
+    const meta = document.createElement("div"); meta.className = "meta";
+    const n = document.createElement("div"); n.className = "name"; n.textContent = w.name;
+    const s = document.createElement("div"); s.className = "sub";
+    s.textContent = `${w.rotate ? "Rotation" : NAMES[w.pos]} · ${fmt(w.work)}${w.work < 60 ? "s" : ""} / ${fmt(w.rest)}${w.rest < 60 ? "s" : ""} · ${w.rounds} rounds`;
+    meta.append(n, s);
+    const load = document.createElement("button"); load.className = "load"; load.textContent = "Load";
+    load.onclick = () => { const { name, cmds, custom, ...rest } = clone(w); Object.assign(S, rest); S.cmds = { ...S.cmds, ...cmds }; S.custom = { ...S.custom, ...custom }; save(); renderSetup(); window.scrollTo(0, 0); };
+    const del = document.createElement("button"); del.className = "del"; del.textContent = "×"; del.setAttribute("aria-label", "Delete " + w.name);
+    del.onclick = () => { if (confirm(`Delete "${w.name}"?`)) { S.saved.splice(i, 1); save(); renderSaved(); } };
+    row.append(meta, load, del); box.appendChild(row);
+  });
+}
+$("#saveForm").onsubmit = e => {
+  e.preventDefault();
+  const name = $("#saveName").value.trim().replace(/\s+/g, " ");
+  if (!name) return;
+  const snap = { name, cmds: clone(S.cmds), custom: clone(S.custom) };
+  SNAP.forEach(k => snap[k] = clone(S[k]));
+  const i = S.saved.findIndex(w => w.name.toLowerCase() === name.toLowerCase());
+  if (i >= 0) S.saved[i] = snap; else S.saved.push(snap);        // same name overwrites
+  $("#saveName").value = ""; save(); renderSaved();
+};
+
+/* ---------- history ---------- */
+const dayKey = t => { const d = new Date(t); return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`; };
+function renderHistory() {
+  const days = new Set(H.map(h => dayKey(h.t)));
+  let streak = 0, d = new Date();
+  if (!days.has(dayKey(d))) d.setDate(d.getDate() - 1);           // today can still be added to
+  while (days.has(dayKey(d))) { streak++; d.setDate(d.getDate() - 1); }
+  const weekAgo = new Date(); weekAgo.setHours(0, 0, 0, 0); weekAgo.setDate(weekAgo.getDate() - 6);
+  $("#stTotal").textContent = H.length;
+  $("#stWeek").textContent = H.filter(h => h.t >= weekAgo.getTime()).length;
+  $("#stStreak").textContent = streak;
+  const box = $("#hist"); box.innerHTML = "";
+  if (!H.length) { box.innerHTML = '<div class="empty">Finish a workout and it shows up here.</div>'; return; }
+  H.slice(-8).reverse().forEach(h => {
+    const r = document.createElement("div"); r.className = "hist";
+    const a = document.createElement("span"), b = document.createElement("span");
+    a.textContent = `${new Date(h.t).toLocaleDateString(undefined, { month: "short", day: "numeric" })} · ${h.plan}`;
+    b.textContent = `${h.rounds} of ${h.of} rounds · ${fmt(h.secs)}${h.secs < 60 ? "s" : ""}`;
+    r.append(a, b); box.appendChild(r);
+  });
+}
+function logWorkout() {
+  if (!st || st.logged || st.elapsed < 10) return;
+  st.logged = true;
+  const rounds = st.phase === "done" ? S.rounds : st.phase === "rest" ? st.round : st.phase === "work" ? st.round - 1 : 0;
+  H.push({ t: Date.now(), plan: S.rotate ? "Rotation" : NAMES[S.pos], rounds, of: S.rounds, secs: st.elapsed });
+  H = H.slice(-200); write("drillHistory", H); renderHistory();
+}
+
+/* ---------- sound settings ---------- */
 $("#voice").onchange = e => { S.voice = e.target.checked; save(); };
 $("#beeps").onchange = e => { S.beeps = e.target.checked; save(); };
+$("#vary").onchange = e => { S.vary = e.target.checked; save(); };
+$("#rate").oninput = e => { S.rate = +e.target.value; save(); renderSetup(); };
+$("#voiceSel").onchange = e => { S.voiceURI = e.target.value; save(); };
+$("#testVoice").onclick = () => { speak("Stance and Motion. Level change. Shot."); };
+function loadVoices() {
+  if (!synth) return;
+  const vs = synth.getVoices().filter(v => /^en/i.test(v.lang)), sel = $("#voiceSel");
+  sel.innerHTML = ""; sel.add(new Option("Default voice", ""));
+  vs.forEach(v => sel.add(new Option(`${v.name} (${v.lang})`, v.voiceURI)));
+  sel.value = vs.some(v => v.voiceURI === S.voiceURI) ? S.voiceURI : "";
+}
+if (synth) { synth.onvoiceschanged = loadVoices; loadVoices(); }
+
+$("#resetAll").onclick = () => {
+  if (!confirm("Reset timer, positions, moves and sound settings to the defaults? Saved workouts and history are kept.")) return;
+  const keep = S.saved; S = { ...DEFAULTS }; S.cmds = clone(DEFAULT_ON); S.custom = { neutral: [], top: [], bottom: [] }; S.saved = keep; S.addedPepsi = true;
+  save(); renderSetup(); loadVoices(); window.scrollTo(0, 0);
+};
+$("#clearHist").onclick = () => { if (confirm("Clear your workout history?")) { H = []; write("drillHistory", H); renderHistory(); } };
 
 /* ---------- audio ---------- */
 let ctx;
@@ -229,30 +411,35 @@ function beep(freq, dur, vol = .4) {
   o.start(); o.stop(ctx.currentTime + dur);
 }
 function whistle() { beep(2600, .45, .35); setTimeout(() => beep(2600, .35, .35), 200); }
-function say(text) {
-  if (!S.voice || !("speechSynthesis" in window)) return;
-  speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(text); u.rate = 1.1; speechSynthesis.speak(u);
-  $("#cmd").textContent = text;
+function speak(text) {
+  if (!synth) return;
+  synth.cancel();
+  const u = new SpeechSynthesisUtterance(text); u.rate = S.rate;
+  const v = S.voiceURI && synth.getVoices().find(v => v.voiceURI === S.voiceURI); if (v) u.voice = v;
+  synth.speak(u);
 }
+function say(text) { $("#cmd").textContent = text; if (S.voice) speak(text); }
 
 /* ---------- workout engine ---------- */
 let st = null, tick = null, wake = null, lastCmd = "";
+const roundPos = round => S.rotate ? rotList()[(round - 1) % rotList().length] : S.pos;
+const nextGap = () => S.vary ? Math.max(1, S.gap + Math.round((Math.random() * 2 - 1) * Math.max(1, S.gap * .5))) : S.gap;
 const pick = () => {
-  const pool = S.cmds[S.pos];
+  const pool = S.cmds[st.pos];
   let c; do { c = pool[Math.floor(Math.random() * pool.length)]; } while (c === lastCmd && pool.length > 1);
   return lastCmd = c;
 };
 
 function setPhase(name, secs) {
-  st.phase = name; st.left = secs; st.sinceCall = 0;
-  const run = $("#run"); run.className = "show " + name;
+  st.phase = name; st.left = secs; st.sinceCall = 0; st.nextGap = nextGap();
+  if (name === "work") st.pos = roundPos(st.round);
+  $("#run").className = "show " + name;
   $("#phase").textContent = { ready: "Get ready", work: "Work", rest: "Rest", done: "Done" }[name];
-  $("#round").textContent = name === "ready" ? "" : `Round ${st.round} of ${S.rounds}`;
+  $("#round").textContent = name === "ready" ? "" : `Round ${st.round} of ${S.rounds}` + (S.rotate && name === "work" ? ` · ${NAMES[st.pos]}` : "");
   $("#cmd").textContent = "";
-  if (name === "work") { whistle(); say(NAMES[S.pos]); }
-  if (name === "rest") { beep(880, .3); say("Rest"); }
-  if (name === "done") { whistle(); say("Workout complete"); clearInterval(tick); releaseWake(); $("#pause").style.display = "none"; }
+  if (name === "work") { whistle(); say(NAMES[st.pos]); }
+  if (name === "rest") { beep(880, .3); say("Rest"); if (S.rotate && st.round < S.rounds) $("#cmd").textContent = "Next: " + NAMES[roundPos(st.round + 1)]; }
+  if (name === "done") { whistle(); say("Workout complete"); clearInterval(tick); releaseWake(); $("#pause").style.display = "none"; logWorkout(); }
   draw();
 }
 function draw() { $("#clock").textContent = st.phase === "done" ? "✓" : fmt(st.left); }
@@ -260,8 +447,9 @@ function draw() { $("#clock").textContent = st.phase === "done" ? "✓" : fmt(st
 function step() {
   if (st.paused) return;
   st.left--; st.sinceCall++;
+  if (st.phase !== "ready") st.elapsed++;
   if (st.left <= 3 && st.left > 0) beep(660, .12);
-  if (st.phase === "work" && st.sinceCall >= S.gap && st.left > 1) { st.sinceCall = 0; say(pick()); }
+  if (st.phase === "work" && st.sinceCall >= st.nextGap && st.left > 1) { st.sinceCall = 0; st.nextGap = nextGap(); say(pick()); }
   if (st.left <= 0) {
     if (st.phase === "ready") { st.round = 1; return setPhase("work", S.work); }
     if (st.phase === "work") {
@@ -280,15 +468,26 @@ document.addEventListener("visibilitychange", () => { if (document.visibilitySta
 $("#start").onclick = () => {
   ctx = ctx || new (window.AudioContext || window.webkitAudioContext)();
   ctx.resume();
-  if (S.voice && "speechSynthesis" in window) speechSynthesis.speak(new SpeechSynthesisUtterance(""));  // unlock iOS speech
-  st = { phase: "ready", left: 3, round: 0, sinceCall: 0, paused: false };
+  if (S.voice && synth) synth.speak(new SpeechSynthesisUtterance(""));  // unlock iOS speech
+  st = { phase: "ready", left: 3, round: 0, sinceCall: 0, nextGap: S.gap, paused: false, elapsed: 0, logged: false, pos: S.pos };
+  delete $("#run").dataset.big; $("#big").textContent = "Big view";
   $("#pause").style.display = ""; $("#pause").textContent = "Pause";
   $("#run").className = "show ready"; $("#phase").textContent = "Get ready"; $("#round").textContent = ""; $("#cmd").textContent = "";
   draw(); getWake();
   clearInterval(tick); tick = setInterval(step, 1000);
 };
-$("#pause").onclick = () => { st.paused = !st.paused; $("#pause").textContent = st.paused ? "Resume" : "Pause"; if (st.paused) speechSynthesis.cancel(); };
-$("#stop").onclick = () => { clearInterval(tick); speechSynthesis.cancel(); releaseWake(); $("#run").className = ""; st = null; };
+$("#pause").onclick = () => { st.paused = !st.paused; $("#pause").textContent = st.paused ? "Resume" : "Pause"; if (st.paused) synth?.cancel(); };
+$("#big").onclick = () => {
+  const run = $("#run"), on = !("big" in run.dataset);
+  if (on) run.dataset.big = ""; else delete run.dataset.big;
+  $("#big").textContent = on ? "Normal view" : "Big view";
+  try { if (on && document.documentElement.requestFullscreen) document.documentElement.requestFullscreen(); else if (!on && document.fullscreenElement) document.exitFullscreen(); } catch (_) {}
+};
+$("#stop").onclick = () => {
+  logWorkout(); clearInterval(tick); synth?.cancel(); releaseWake();
+  try { if (document.fullscreenElement) document.exitFullscreen(); } catch (_) {}
+  $("#run").className = ""; st = null;
+};
 
 renderSetup();
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
