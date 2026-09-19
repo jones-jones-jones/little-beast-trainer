@@ -211,20 +211,21 @@ const NAMES = { neutral: "Stance and Motion", top: "Top", bottom: "Bottom" };
 const COMMANDS = {
   // on your feet: stance, motion, hand fighting, setups, shots, finishes, and defending shots
   neutral: ["Stance", "Circle", "Shuffle", "Switch stance", "Backstep", "Level change", "Hand fight", "Inside tie", "Collar tie", "Wrist control",
-            "Underhook", "Overhook", "Snap down", "Push pull", "Arm drag", "Drop step", "Penetration step", "Shot", "Re-shot", "Single leg", "Double leg",
-            "High crotch", "Ankle pick", "Duck under", "Head inside", "Finish the leg", "Front headlock", "Go behind", "Sprawl", "Pepsi"],
+            "Underhook", "Snap down", "Push pull", "Arm drag", "Drop step", "Penetration step", "Shot", "Re-shot", "Single leg", "Double leg",
+            "High crotch", "Ankle pick", "Outside sweep", "Fake", "Shot block", "Pepsi", "Head club", "Duck under", "Head inside",
+            "Finish the leg", "Front headlock", "Go behind", "Sprawl"],
   // on top: control, rides, breakdowns, turns, and finishing the pin
-  top:     ["Tight waist", "Chop", "Cut", "Cross face", "Half nelson", "Power half", "Break him down", "Hips heavy", "Ride", "Spiral ride", "Leg ride",
+  top:     ["Hulk Smash", "Bar in", "Tight waist", "Chop", "Cut", "Half", "Power half", "Break him down", "Hips heavy", "Ride", "Spiral ride", "Leg ride",
             "Far ankle", "Wrist control", "Clear the leg", "Gut wrench", "Cradle", "Tilt", "Arm bar", "Turk", "Stack", "Back step", "Chop and drive", "Look for the turn"],
   // on bottom: base, grip breaking, stand-ups, sit-outs, switches, rolls, and reversals
-  bottom:  ["Build a base", "Hand control", "Break the grip", "Hand fight", "Elbow post", "Hips back", "Stand up", "Sit out", "Sit through", "Switch", "Hip heist",
-            "Tripod", "Turn the corner", "Whizzer", "Granby roll", "Peterson roll", "Reverse", "Escape"]
+  bottom:  ["Base up", "Quad pod", "Sword and Shield", "Hand control", "Break the grip", "Hand fight", "Elbow post", "Hips back", "Stand up", "Sit out", "Sit through",
+            "Switch", "Hip heist", "Tripod", "Turn the corner", "Whizzer", "Granby roll", "Peterson roll"]
 };
 // what's switched on before you change anything
 const DEFAULT_ON = {
-  neutral: ["Stance", "Circle", "Level change", "Hand fight", "Snap down", "Push pull", "Shot", "Re-shot", "Duck under", "Head inside", "Finish the leg", "Sprawl", "Pepsi"],
-  top:     ["Tight waist", "Chop", "Cut", "Cross face", "Half nelson", "Break him down", "Hips heavy", "Ride", "Clear the leg", "Look for the turn"],
-  bottom:  ["Build a base", "Hand control", "Break the grip", "Stand up", "Sit out", "Switch", "Hip heist", "Tripod", "Granby roll", "Escape"]
+  neutral: ["Stance", "Circle", "Level change", "Hand fight", "Snap down", "Push pull", "Shot", "Re-shot", "Duck under", "Head inside", "Finish the leg", "Sprawl"],
+  top:     ["Tight waist", "Chop", "Cut", "Break him down", "Hips heavy", "Ride", "Clear the leg", "Look for the turn"],
+  bottom:  ["Hand control", "Break the grip", "Stand up", "Sit out", "Switch", "Hip heist", "Tripod", "Granby roll"]
 };
 
 const DEFAULTS = { pos: "neutral", work: 30, rest: 15, rounds: 8, gap: 4, voice: true, beeps: true, vary: true, rate: 1.1, voiceURI: "", rotate: false, rotSet: [...ORDER] };
@@ -237,8 +238,10 @@ if (!NAMES[S.pos]) S.pos = "neutral";                                   // "mix"
 S.cmds = { ...clone(DEFAULT_ON), ...(S.cmds || {}) };
 S.custom = { neutral: [], top: [], bottom: [], ...(S.custom || {}) };   // moves you typed in
 S.saved = Array.isArray(S.saved) ? S.saved : [];
-if (!S.addedPepsi) { S.addedPepsi = true; if (!S.cmds.neutral.includes("Pepsi")) S.cmds.neutral.push("Pepsi"); }   // one-time: switch on the new move
 const allMoves = pos => [...COMMANDS[pos], ...S.custom[pos]];
+// drop any switched-on move that is no longer in the list (e.g. one removed in an update), so it can't be called
+const sanitize = () => ORDER.forEach(p => { S.cmds[p] = S.cmds[p].filter(c => allMoves(p).includes(c)); });
+sanitize();
 let H = read("drillHistory", []);
 const save = () => write("drill", S);
 const $ = s => document.querySelector(s);
@@ -331,7 +334,7 @@ function renderSaved() {
     s.textContent = `${w.rotate ? "Rotation" : NAMES[w.pos]} · ${fmt(w.work)}${w.work < 60 ? "s" : ""} / ${fmt(w.rest)}${w.rest < 60 ? "s" : ""} · ${w.rounds} rounds`;
     meta.append(n, s);
     const load = document.createElement("button"); load.className = "load"; load.textContent = "Load";
-    load.onclick = () => { const { name, cmds, custom, ...rest } = clone(w); Object.assign(S, rest); S.cmds = { ...S.cmds, ...cmds }; S.custom = { ...S.custom, ...custom }; save(); renderSetup(); window.scrollTo(0, 0); };
+    load.onclick = () => { const { name, cmds, custom, ...rest } = clone(w); Object.assign(S, rest); S.cmds = { ...S.cmds, ...cmds }; S.custom = { ...S.custom, ...custom }; sanitize(); save(); renderSetup(); window.scrollTo(0, 0); };
     const del = document.createElement("button"); del.className = "del"; del.textContent = "×"; del.setAttribute("aria-label", "Delete " + w.name);
     del.onclick = () => { if (confirm(`Delete "${w.name}"?`)) { S.saved.splice(i, 1); save(); renderSaved(); } };
     row.append(meta, load, del); box.appendChild(row);
@@ -395,7 +398,7 @@ if (synth) { synth.onvoiceschanged = loadVoices; loadVoices(); }
 
 $("#resetAll").onclick = () => {
   if (!confirm("Reset timer, positions, moves and sound settings to the defaults? Saved workouts and history are kept.")) return;
-  const keep = S.saved; S = { ...DEFAULTS }; S.cmds = clone(DEFAULT_ON); S.custom = { neutral: [], top: [], bottom: [] }; S.saved = keep; S.addedPepsi = true;
+  const keep = S.saved; S = { ...DEFAULTS }; S.cmds = clone(DEFAULT_ON); S.custom = { neutral: [], top: [], bottom: [] }; S.saved = keep;
   save(); renderSetup(); loadVoices(); window.scrollTo(0, 0);
 };
 $("#clearHist").onclick = () => { if (confirm("Clear your workout history?")) { H = []; write("drillHistory", H); renderHistory(); } };
