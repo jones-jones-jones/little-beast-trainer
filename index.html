@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Little Beast">
+<meta name="theme-color" content="#0e1116">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<title>Little Beast's Stance and Motion Trainer</title>
+<style>
+  :root {
+    --bg: #0e1116; --panel: #181d25; --line: #2a313c; --text: #f2f4f7; --dim: #8b95a5;
+    --work: #2ecc71; --rest: #f5a623; --accent: #e5484d;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+    -webkit-user-select: none; user-select: none; overscroll-behavior: none; }
+  body { padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom); display: flex; flex-direction: column; }
+  main { flex: 1; display: flex; flex-direction: column; max-width: 480px; width: 100%; margin: 0 auto; padding: 16px 0; }
+  h1 { font-size: .95rem; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); margin: 0 0 16px; font-weight: 600; }
+  .group { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 14px; margin-bottom: 12px; }
+  .label { font-size: .75rem; color: var(--dim); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 10px; }
+  .seg { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .seg button { padding: 12px 0; border-radius: 10px; border: 1px solid var(--line); background: transparent; color: var(--text); font-size: .95rem; font-weight: 600; }
+  .seg button.on { background: var(--text); color: var(--bg); border-color: var(--text); }
+  .row { display: flex; align-items: center; justify-content: space-between; padding: 6px 0; }
+  .row + .row { border-top: 1px solid var(--line); }
+  .row span { font-size: 1rem; }
+  .step { display: flex; align-items: center; gap: 14px; }
+  .step button { width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--line); background: transparent; color: var(--text); font-size: 1.3rem; }
+  .step output { min-width: 56px; text-align: center; font-variant-numeric: tabular-nums; font-size: 1.15rem; font-weight: 600; }
+  .presets { display: flex; gap: 8px; flex-wrap: wrap; }
+  .presets button { padding: 9px 14px; border-radius: 20px; border: 1px solid var(--line); background: transparent; color: var(--text); font-size: .85rem; }
+  .toggle { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; }
+  .toggle input { width: 48px; height: 28px; accent-color: var(--work); }
+  .go { margin-top: auto; padding: 18px; border: 0; border-radius: 14px; background: var(--accent); color: #fff; font-size: 1.2rem; font-weight: 700; letter-spacing: .04em; }
+
+  /* running screen */
+  #run { position: fixed; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center;
+    padding: env(safe-area-inset-top) 20px env(safe-area-inset-bottom); text-align: center; transition: background .2s; }
+  #run.show { display: flex; }
+  #run.work { background: #0f3d24; } #run.rest { background: #4a3106; } #run.ready { background: #1b2230; } #run.done { background: #1b2230; }
+  #phase { font-size: 1.1rem; letter-spacing: .2em; text-transform: uppercase; opacity: .85; }
+  #clock { font-size: min(28vw, 9rem); font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1; margin: 10px 0; }
+  @media (min-width: 500px) { #clock { font-size: 9rem; } }
+  #cmd { font-size: 2rem; font-weight: 700; min-height: 2.6rem; }
+  #round { color: var(--dim); margin-top: 8px; font-size: 1rem; }
+  .ctrls { display: flex; gap: 14px; margin-top: 40px; }
+  .ctrls button { padding: 14px 26px; border-radius: 12px; border: 1px solid rgba(255,255,255,.3); background: rgba(0,0,0,.25); color: #fff; font-size: 1rem; font-weight: 600; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Little Beast's Stance and Motion Trainer</h1>
+
+  <div class="group">
+    <div class="label">Position</div>
+    <div class="seg" id="pos">
+      <button data-v="neutral">Neutral</button>
+      <button data-v="top">Top</button>
+      <button data-v="bottom">Bottom</button>
+      <button data-v="mix">Mix</button>
+    </div>
+  </div>
+
+  <div class="group">
+    <div class="label">Timer</div>
+    <div class="row"><span>Work</span><div class="step" data-k="work" data-min="5" data-max="300" data-step="5"><button>−</button><output></output><button>+</button></div></div>
+    <div class="row"><span>Rest</span><div class="step" data-k="rest" data-min="0" data-max="300" data-step="5"><button>−</button><output></output><button>+</button></div></div>
+    <div class="row"><span>Rounds</span><div class="step" data-k="rounds" data-min="1" data-max="50" data-step="1"><button>−</button><output></output><button>+</button></div></div>
+    <div class="row"><span>Call-out gap</span><div class="step" data-k="gap" data-min="1" data-max="15" data-step="1"><button>−</button><output></output><button>+</button></div></div>
+  </div>
+
+  <div class="group">
+    <div class="label">Presets</div>
+    <div class="presets">
+      <button data-p="10,10,10">Whistle starts 10/10</button>
+      <button data-p="30,15,8">Quick 30/15</button>
+      <button data-p="60,20,6">Round 60/20</button>
+      <button data-p="120,60,3">Period 2:00</button>
+    </div>
+  </div>
+
+  <div class="group">
+    <div class="toggle"><span>Voice call-outs</span><input type="checkbox" id="voice"></div>
+    <div class="toggle"><span>Whistle &amp; beeps</span><input type="checkbox" id="beeps"></div>
+  </div>
+
+  <button class="go" id="start">START</button>
+</main>
+
+<div id="run" class="ready">
+  <div id="phase">Get ready</div>
+  <div id="clock">3</div>
+  <div id="cmd"></div>
+  <div id="round"></div>
+  <div class="ctrls"><button id="pause">Pause</button><button id="stop">End</button></div>
+</div>
+
+<script>
+const COMMANDS = {
+  neutral: ["Shot", "Level change", "Hand fight", "Snap down", "Sprawl", "Re-shot", "Duck under", "Head inside", "Circle", "Finish the leg", "Push pull", "Get to your feet"],
+  top:     ["Tight waist", "Chop", "Half nelson", "Cross face", "Break him down", "Ride", "Cut", "Hips heavy", "Look for the turn", "Clear the leg"],
+  bottom:  ["Stand up", "Sit out", "Switch", "Hip heist", "Build a base", "Hand control", "Tripod", "Get to your feet", "Escape", "Come up"]
+};
+
+const DEFAULTS = { pos: "neutral", work: 30, rest: 15, rounds: 8, gap: 4, voice: true, beeps: true };
+let S = { ...DEFAULTS, ...JSON.parse(localStorage.getItem("drill") || "{}") };
+const save = () => localStorage.setItem("drill", JSON.stringify(S));
+const $ = s => document.querySelector(s);
+const fmt = s => s >= 60 ? Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0") : String(s);
+
+/* ---------- setup screen ---------- */
+function renderSetup() {
+  document.querySelectorAll("#pos button").forEach(b => b.classList.toggle("on", b.dataset.v === S.pos));
+  document.querySelectorAll(".step").forEach(el => {
+    const k = el.dataset.k;
+    el.querySelector("output").textContent = k === "gap" ? S[k] + "s" : k === "rounds" ? S[k] : fmt(S[k]) + (S[k] < 60 ? "s" : "");
+  });
+  $("#voice").checked = S.voice; $("#beeps").checked = S.beeps;
+}
+$("#pos").onclick = e => { if (e.target.dataset.v) { S.pos = e.target.dataset.v; save(); renderSetup(); } };
+document.querySelectorAll(".step").forEach(el => {
+  const [minus, plus] = el.querySelectorAll("button"); const k = el.dataset.k;
+  const bump = d => { S[k] = Math.min(+el.dataset.max, Math.max(+el.dataset.min, S[k] + d * +el.dataset.step)); save(); renderSetup(); };
+  minus.onclick = () => bump(-1); plus.onclick = () => bump(1);
+});
+document.querySelectorAll(".presets button").forEach(b => b.onclick = () => {
+  [S.work, S.rest, S.rounds] = b.dataset.p.split(",").map(Number); save(); renderSetup();
+});
+$("#voice").onchange = e => { S.voice = e.target.checked; save(); };
+$("#beeps").onchange = e => { S.beeps = e.target.checked; save(); };
+
+/* ---------- audio ---------- */
+let ctx;
+function beep(freq, dur, vol = .4) {
+  if (!S.beeps || !ctx) return;
+  const o = ctx.createOscillator(), g = ctx.createGain();
+  o.frequency.value = freq; o.type = "square"; g.gain.value = vol;
+  o.connect(g); g.connect(ctx.destination);
+  g.gain.setValueAtTime(vol, ctx.currentTime); g.gain.exponentialRampToValueAtTime(.001, ctx.currentTime + dur);
+  o.start(); o.stop(ctx.currentTime + dur);
+}
+function whistle() { beep(2600, .45, .35); setTimeout(() => beep(2600, .35, .35), 200); }
+function say(text) {
+  if (!S.voice || !("speechSynthesis" in window)) return;
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text); u.rate = 1.1; speechSynthesis.speak(u);
+  $("#cmd").textContent = text;
+}
+
+/* ---------- workout engine ---------- */
+let st = null, tick = null, wake = null, lastCmd = "";
+const pick = () => {
+  const pool = S.pos === "mix" ? COMMANDS[["neutral", "top", "bottom"][Math.floor(Math.random() * 3)]] : COMMANDS[S.pos];
+  let c; do { c = pool[Math.floor(Math.random() * pool.length)]; } while (c === lastCmd && pool.length > 1);
+  return lastCmd = c;
+};
+
+function setPhase(name, secs) {
+  st.phase = name; st.left = secs; st.sinceCall = 0;
+  const run = $("#run"); run.className = "show " + name;
+  $("#phase").textContent = { ready: "Get ready", work: "Work", rest: "Rest", done: "Done" }[name];
+  $("#round").textContent = name === "ready" ? "" : `Round ${st.round} of ${S.rounds}`;
+  $("#cmd").textContent = "";
+  if (name === "work") { whistle(); if (S.pos !== "mix") say(S.pos === "neutral" ? "Neutral" : S.pos === "top" ? "Top" : "Bottom"); }
+  if (name === "rest") { beep(880, .3); say("Rest"); }
+  if (name === "done") { whistle(); say("Workout complete"); clearInterval(tick); releaseWake(); $("#pause").style.display = "none"; }
+  draw();
+}
+function draw() { $("#clock").textContent = st.phase === "done" ? "✓" : fmt(st.left); }
+
+function step() {
+  if (st.paused) return;
+  st.left--; st.sinceCall++;
+  if (st.left <= 3 && st.left > 0) beep(660, .12);
+  if (st.phase === "work" && st.sinceCall >= S.gap && st.left > 1) { st.sinceCall = 0; say(pick()); }
+  if (st.left <= 0) {
+    if (st.phase === "ready") { st.round = 1; return setPhase("work", S.work); }
+    if (st.phase === "work") {
+      if (st.round >= S.rounds) return setPhase("done", 0);
+      return S.rest > 0 ? setPhase("rest", S.rest) : (st.round++, setPhase("work", S.work));
+    }
+    if (st.phase === "rest") { st.round++; return setPhase("work", S.work); }
+  }
+  draw();
+}
+
+async function getWake() { try { wake = await navigator.wakeLock?.request("screen"); } catch (_) {} }
+function releaseWake() { try { wake?.release(); } catch (_) {} wake = null; }
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && st && st.phase !== "done") getWake(); });
+
+$("#start").onclick = () => {
+  ctx = ctx || new (window.AudioContext || window.webkitAudioContext)();
+  ctx.resume();
+  if (S.voice && "speechSynthesis" in window) speechSynthesis.speak(new SpeechSynthesisUtterance(""));  // unlock iOS speech
+  st = { phase: "ready", left: 3, round: 0, sinceCall: 0, paused: false };
+  $("#pause").style.display = ""; $("#pause").textContent = "Pause";
+  $("#run").className = "show ready"; $("#phase").textContent = "Get ready"; $("#round").textContent = ""; $("#cmd").textContent = "";
+  draw(); getWake();
+  clearInterval(tick); tick = setInterval(step, 1000);
+};
+$("#pause").onclick = () => { st.paused = !st.paused; $("#pause").textContent = st.paused ? "Resume" : "Pause"; if (st.paused) speechSynthesis.cancel(); };
+$("#stop").onclick = () => { clearInterval(tick); speechSynthesis.cancel(); releaseWake(); $("#run").className = ""; st = null; };
+
+renderSetup();
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+</script>
+</body>
+</html>
