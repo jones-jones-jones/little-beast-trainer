@@ -424,19 +424,10 @@ function say(text) { $("#cmd").textContent = text; if (S.voice) speak(text); }
 let st = null, tick = null, wake = null, lastCmd = "";
 const roundPos = round => S.rotate ? rotList()[(round - 1) % rotList().length] : S.pos;
 const nextGap = () => S.vary ? Math.max(1, S.gap + Math.round((Math.random() * 2 - 1) * Math.max(1, S.gap * .5))) : S.gap;
-// Deal the selected moves like a shuffled deck: every move gets called once before any repeats,
-// and the deck carries over from round to round. Each position keeps its own deck.
-const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 const pick = () => {
   const pool = S.cmds[st.pos];
-  st.decks = st.decks || {};
-  let deck = (st.decks[st.pos] || []).filter(c => pool.includes(c));
-  if (!deck.length) {
-    deck = shuffle([...pool]);
-    if (deck.length > 1 && deck[deck.length - 1] === lastCmd) deck.unshift(deck.pop());   // don't open a new deck with the move just called
-  }
-  st.decks[st.pos] = deck;
-  return lastCmd = deck.pop();
+  let c; do { c = pool[Math.floor(Math.random() * pool.length)]; } while (c === lastCmd && pool.length > 1);
+  return lastCmd = c;
 };
 
 function setPhase(name, secs) {
