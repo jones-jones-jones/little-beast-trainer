@@ -69,6 +69,17 @@
   .saved-item .name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .saved-item .load { padding: 8px 14px; border-radius: 16px; border: 0; background: var(--accent); color: var(--on-accent); font-weight: 600; }
   .saved-item .del { width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--line); background: transparent; color: var(--dim); font-size: 1.1rem; }
+  .own { display: none; margin: 4px 0 10px; padding: 12px; border: 1px dashed var(--line); border-radius: 12px; }
+  .own.show { display: block; }
+  .own .top { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+  .rec { padding: 10px 16px; border-radius: 20px; border: 0; background: var(--warn); color: #2a0806; font-weight: 700; }
+  .rec.live { background: #fff; }
+  .own .msg { color: var(--dim); font-size: .85rem; }
+  .clip { display: flex; align-items: center; gap: 8px; padding: 8px 0; }
+  .clip + .clip { border-top: 1px solid var(--line); }
+  .clip .n { flex: 1; }
+  .clip button { padding: 7px 14px; border-radius: 16px; border: 1px solid var(--line); background: transparent; color: var(--text); }
+  .clip button.del { width: 34px; padding: 7px 0; color: var(--dim); }
   .empty { color: var(--dim); font-size: .9rem; }
   .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px; text-align: center; }
   .stats div { background: var(--bg); border-radius: 10px; padding: 10px 4px; }
@@ -174,9 +185,16 @@
     <div class="toggle"><span>Voice call-outs</span><input type="checkbox" id="voice"></div>
     <div class="toggle"><span>Whistle &amp; beeps</span><input type="checkbox" id="beeps"></div>
     <div class="toggle"><div><div>Vary the timing</div><div class="sub">Call-outs land a little early or late so you can't predict them.</div></div><input type="checkbox" id="vary"></div>
+    <div class="toggle"><div><div>Preset motivation clips</div><div class="sub">Plays a short recording during rest. Turn off to record your own.</div></div><input type="checkbox" id="clips"></div>
+    <div class="own" id="ownBox">
+      <div class="label" style="margin:0">Your own clips</div>
+      <div class="sub">Record up to 5 seconds. One plays at random during rest. Clips stay on this phone only.</div>
+      <div class="top"><button class="rec" id="rec">● Record</button><span class="msg" id="recMsg"></span></div>
+      <div id="ownList"></div>
+    </div>
     <div class="toggle"><span>Speed</span><input type="range" id="rate" min="0.7" max="1.5" step="0.05"><output id="rateOut"></output></div>
     <div class="toggle"><span>Voice</span><select class="field" id="voiceSel"><option value="">Default voice</option></select></div>
-    <div class="tools" style="margin:8px 0 0"><button class="small" id="testVoice">Test voice</button></div>
+    <div class="tools" style="margin:8px 0 0"><button class="small" id="testVoice">Test voice</button><button class="small" id="testClip">Test clip</button></div>
   </div>
 
   <div class="group">
@@ -228,7 +246,7 @@ const DEFAULT_ON = {
   bottom:  ["Hand control", "Break the grip", "Stand up", "Sit out", "Switch", "Hip heist", "Tripod", "Granby roll"]
 };
 
-const DEFAULTS = { pos: "neutral", work: 30, rest: 15, rounds: 8, gap: 4, voice: true, beeps: true, vary: true, rate: 1.1, voiceURI: "", rotate: false, rotSet: [...ORDER] };
+const DEFAULTS = { pos: "neutral", work: 30, rest: 15, rounds: 8, gap: 4, voice: true, beeps: true, vary: true, clips: true, rate: 1.1, voiceURI: "", rotate: false, rotSet: [...ORDER] };
 const clone = o => JSON.parse(JSON.stringify(o));
 const read = (k, fb) => { try { return JSON.parse(localStorage.getItem(k)) ?? fb; } catch (_) { return fb; } };
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (_) {} };
@@ -261,7 +279,7 @@ function renderSetup() {
     const k = el.dataset.k;
     el.querySelector("output").textContent = k === "gap" ? S[k] + "s" : k === "rounds" ? S[k] : fmt(S[k]) + (S[k] < 60 ? "s" : "");
   });
-  $("#voice").checked = S.voice; $("#beeps").checked = S.beeps; $("#vary").checked = S.vary;
+  $("#voice").checked = S.voice; $("#beeps").checked = S.beeps; $("#vary").checked = S.vary; $("#clips").checked = S.clips; $("#ownBox").classList.toggle("show", !S.clips); if (!S.clips) renderOwn();
   $("#rate").value = S.rate; $("#rateOut").textContent = (+S.rate).toFixed(2).replace(/0$/, "") + "×";
   $("#rotate").checked = S.rotate; $("#rotBox").classList.toggle("show", S.rotate);
   document.querySelectorAll("#rotSet button").forEach(b => b.classList.toggle("on", S.rotSet.includes(b.dataset.rot)));
@@ -389,6 +407,7 @@ function logWorkout() {
 $("#voice").onchange = e => { S.voice = e.target.checked; save(); };
 $("#beeps").onchange = e => { S.beeps = e.target.checked; save(); };
 $("#vary").onchange = e => { S.vary = e.target.checked; save(); };
+$("#clips").onchange = e => { S.clips = e.target.checked; save(); renderSetup(); };
 $("#rate").oninput = e => { S.rate = +e.target.value; save(); renderSetup(); };
 $("#voiceSel").onchange = e => { S.voiceURI = e.target.value; save(); };
 $("#testVoice").onclick = () => { speak("Stance and Motion. Level change. Shot."); };
@@ -428,6 +447,87 @@ function speak(text) {
 }
 function say(text) { $("#cmd").textContent = text; if (S.voice) speak(text); }
 
+/* ---------- motivation clips ---------- */
+const CLIP_FILES = ["clips/clip-1.m4a", "clips/clip-2.m4a", "clips/clip-3.m4a", "clips/clip-4.m4a", "clips/clip-5.m4a", "clips/clip-6.m4a"];
+let clipBufs = [], ownBufs = [], lastClip = -1, clipsLoading = null;
+const decode = ab => new Promise((ok, no) => { const p = ctx.decodeAudioData(ab, ok, no); if (p && p.then) p.then(ok, no); });
+function loadClips() {                                    // preset clips: fetch + decode once, after a tap has unlocked audio
+  if (!ctx) return Promise.resolve();
+  return clipsLoading = clipsLoading || Promise.all(CLIP_FILES.map(f => fetch(f).then(r => r.arrayBuffer()).then(decode).catch(() => null)))
+    .then(bs => { clipBufs = bs.filter(Boolean); });
+}
+async function loadOwn() {                                // your own recordings, read from this phone
+  if (!ctx) return;
+  const all = await ownAll().catch(() => []);
+  ownBufs = (await Promise.all((all || []).map(c => c.blob.arrayBuffer().then(decode).catch(() => null)))).filter(Boolean);
+}
+// a problem loading clips must never stop a workout from starting
+const loadPool = () => Promise.resolve().then(() => S.clips ? loadClips() : loadOwn()).catch(() => {});
+function playClip() {                                     // random clip that fits the rest, never the same one twice in a row
+  const pool = (S.clips ? clipBufs : ownBufs).filter(b => b.duration <= Math.max(1, S.rest - 1.5));
+  if (!ctx || !pool.length) return false;
+  let i; do { i = Math.floor(Math.random() * pool.length); } while (i === lastClip && pool.length > 1);
+  lastClip = i;
+  const src = ctx.createBufferSource(); src.buffer = pool[i]; src.connect(ctx.destination); src.start();
+  return true;
+}
+$("#testClip").onclick = () => {
+  ctx = ctx || new (window.AudioContext || window.webkitAudioContext)();
+  ctx.resume(); loadPool().then(playClip);
+};
+
+/* your own recordings live in this phone's browser storage (IndexedDB), never on a server */
+const idb = () => new Promise((ok, no) => {
+  if (!window.indexedDB) return no(new Error("no storage"));
+  const r = indexedDB.open("little-beast", 1);
+  r.onupgradeneeded = () => r.result.createObjectStore("clips", { keyPath: "id", autoIncrement: true });
+  r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error);
+});
+const tx = (mode, fn) => idb().then(db => new Promise((ok, no) => {
+  const t = db.transaction("clips", mode), req = fn(t.objectStore("clips"));
+  t.oncomplete = () => ok(req && req.result); t.onerror = t.onabort = () => no(t.error);
+}));
+const ownAll = () => tx("readonly", s => s.getAll());
+const ownAdd = c => tx("readwrite", s => s.add(c));
+const ownDel = id => tx("readwrite", s => s.delete(id));
+const recMsg = t => { $("#recMsg").textContent = t; };
+
+async function renderOwn() {
+  const box = $("#ownList"); box.innerHTML = "";
+  let all = []; try { all = await ownAll() || []; } catch (_) { recMsg("Can't save clips in this browser (private mode?)."); return; }
+  all.forEach((c, i) => {
+    const row = document.createElement("div"); row.className = "clip";
+    const n = document.createElement("span"); n.className = "n"; n.textContent = `Clip ${i + 1} · ${c.secs}s`;
+    const play = document.createElement("button"); play.textContent = "Play";
+    play.onclick = () => { const url = URL.createObjectURL(c.blob), a = new Audio(url); a.onended = () => URL.revokeObjectURL(url); a.play().catch(() => recMsg("Couldn't play that clip.")); };
+    const del = document.createElement("button"); del.className = "del"; del.textContent = "×"; del.setAttribute("aria-label", "Delete clip " + (i + 1));
+    del.onclick = async () => { if (confirm("Delete this clip?")) { await ownDel(c.id).catch(() => {}); loadOwn(); renderOwn(); } };
+    row.append(n, play, del); box.appendChild(row);
+  });
+  if (!all.length) box.innerHTML = '<div class="empty" style="margin-top:8px">No recordings yet.</div>';
+}
+
+let rec = null;
+$("#rec").onclick = async () => {
+  if (rec) { rec.stop(); return; }
+  if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) return recMsg("Recording isn't supported in this browser.");
+  let stream; try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); } catch (_) { return recMsg("Microphone blocked. Allow it for this site in your browser settings."); }
+  const chunks = [], mr = new MediaRecorder(stream), t0 = Date.now();
+  const timer = setTimeout(() => { if (mr.state === "recording") mr.stop(); }, 5000);   // 5 second cap
+  mr.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
+  mr.onstop = async () => {
+    clearTimeout(timer); stream.getTracks().forEach(t => t.stop()); rec = null;
+    $("#rec").textContent = "● Record"; $("#rec").classList.remove("live");
+    const secs = Math.round(Math.min(5, (Date.now() - t0) / 1000) * 10) / 10;
+    if (secs < .5 || !chunks.length) return recMsg("Too short. Try again.");
+    try { await ownAdd({ blob: new Blob(chunks, { type: mr.mimeType || "audio/mp4" }), secs, t: Date.now() }); recMsg("Saved."); }
+    catch (_) { recMsg("Couldn't save the clip on this phone."); }
+    loadOwn(); renderOwn();
+  };
+  rec = mr; mr.start();
+  $("#rec").textContent = "■ Stop"; $("#rec").classList.add("live"); recMsg("Recording… (5 seconds max)");
+};
+
 /* ---------- workout engine ---------- */
 let st = null, tick = null, wake = null, lastCmd = "";
 const roundPos = round => S.rotate ? rotList()[(round - 1) % rotList().length] : S.pos;
@@ -446,7 +546,7 @@ function setPhase(name, secs) {
   $("#round").textContent = name === "ready" ? "" : `Round ${st.round} of ${S.rounds}` + (S.rotate && name === "work" ? ` · ${NAMES[st.pos]}` : "");
   $("#cmd").textContent = "";
   if (name === "work") { whistle(); say(NAMES[st.pos]); }
-  if (name === "rest") { beep(880, .3); say("Rest"); if (S.rotate && st.round < S.rounds) $("#cmd").textContent = "Next: " + NAMES[roundPos(st.round + 1)]; }
+  if (name === "rest") { beep(880, .3); say("Rest"); if (S.rest >= 5) setTimeout(() => { if (st && st.phase === "rest" && !st.paused) playClip(); }, 1200); if (S.rotate && st.round < S.rounds) $("#cmd").textContent = "Next: " + NAMES[roundPos(st.round + 1)]; }
   if (name === "done") { whistle(); say("Workout complete"); clearInterval(tick); releaseWake(); $("#pause").style.display = "none"; logWorkout(); }
   draw();
 }
@@ -475,7 +575,7 @@ document.addEventListener("visibilitychange", () => { if (document.visibilitySta
 
 $("#start").onclick = () => {
   ctx = ctx || new (window.AudioContext || window.webkitAudioContext)();
-  ctx.resume();
+  ctx.resume(); loadPool();
   if (S.voice && synth) synth.speak(new SpeechSynthesisUtterance(""));  // unlock iOS speech
   st = { phase: "ready", left: 3, round: 0, sinceCall: 0, nextGap: S.gap, paused: false, elapsed: 0, logged: false, pos: S.pos };
   delete $("#run").dataset.big; $("#big").textContent = "Big view";
