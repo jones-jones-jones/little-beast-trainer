@@ -212,7 +212,7 @@ const COMMANDS = {
   // on your feet: stance, motion, hand fighting, setups, shots, finishes, and defending shots
   neutral: ["Stance", "Circle", "Shuffle", "Switch stance", "Backstep", "Level change", "Hand fight", "Inside tie", "Collar tie", "Wrist control",
             "Underhook", "Snap down", "Push pull", "Arm drag", "Drop step", "Penetration step", "Shot", "Re-shot", "Single leg", "Double leg",
-            "High crotch", "Ankle pick", "Outside sweep", "Fake", "Shot block", "Pepsi", "Head club", "Duck under", "Head inside",
+            "High crotch", "Ankle pick", "Outside sweep", "Fake", "Down Block", "Pepsi", "Head club", "Duck under", "Head inside",
             "Finish the leg", "Front headlock", "Go behind", "Sprawl"],
   // on top: control, rides, breakdowns, turns, and finishing the pin
   top:     ["Hulk Smash", "Bar in", "Tight waist", "Chop", "Cut", "Crossface", "Butcher", "Half", "Power half", "Break him down", "Hips heavy", "Ride", "Spiral ride", "Leg ride",
@@ -239,8 +239,13 @@ S.cmds = { ...clone(DEFAULT_ON), ...(S.cmds || {}) };
 S.custom = { neutral: [], top: [], bottom: [], ...(S.custom || {}) };   // moves you typed in
 S.saved = Array.isArray(S.saved) ? S.saved : [];
 const allMoves = pos => [...COMMANDS[pos], ...S.custom[pos]];
+// moves renamed in an update keep their on/off setting under the new name
+const RENAMES = { "Shot block": "Down Block" };
 // drop any switched-on move that is no longer in the list (e.g. one removed in an update), so it can't be called
-const sanitize = () => ORDER.forEach(p => { S.cmds[p] = S.cmds[p].filter(c => allMoves(p).includes(c)); });
+const sanitize = () => ORDER.forEach(p => {
+  const moved = S.cmds[p].map(c => RENAMES[c] || c);
+  S.cmds[p] = moved.filter((c, i) => moved.indexOf(c) === i && allMoves(p).includes(c));
+});
 sanitize();
 let H = read("drillHistory", []);
 const save = () => write("drill", S);
