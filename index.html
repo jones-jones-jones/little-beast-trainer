@@ -250,8 +250,8 @@
       <div class="row"><span>Round length</span><div class="step" data-o="sit" data-k="work" data-min="15" data-max="600" data-step="15"><button>−</button><output></output><button>+</button></div></div>
       <div class="row"><span>Rest</span><div class="step" data-o="sit" data-k="rest" data-min="0" data-max="180" data-step="5"><button>−</button><output></output><button>+</button></div></div>
       <div class="row"><span>Rounds</span><div class="step" data-o="sit" data-k="rounds" data-min="1" data-max="30" data-step="1"><button>−</button><output></output><button>+</button></div></div>
-      <div class="row"><span>Whistle delay</span><div class="step" data-o="sit" data-k="delay" data-min="1" data-max="10" data-step="1"><button>−</button><output></output><button>+</button></div></div>
-      <div class="sub">Seconds between "Wrestlers ready" and the whistle.</div>
+      <div class="row"><span>Delay before Go</span><div class="step" data-o="sit" data-k="delay" data-min="1" data-max="10" data-step="1"><button>−</button><output></output><button>+</button></div></div>
+      <div class="sub">Seconds between "Wrestlers ready" and "Go".</div>
       <div class="toggle" style="margin-top:6px"><span>Random order</span><input type="checkbox" id="sitRandom"></div>
     </div>
 
@@ -296,7 +296,7 @@ const DEFAULT_ON = {
 
 const DEFAULTS = { pos: "neutral", work: 30, rest: 15, rounds: 8, gap: 4, voice: true, beeps: true, vary: true, clips: true, rate: 1.1, voiceURI: "", rotate: false, rotSet: [...ORDER] };
 const SIT_OPTIONS = ["One man down", "Double", "Single", "High crotch", "Half", "Headlock"];
-const SIT_DEFAULTS = { on: [...SIT_OPTIONS], custom: [], work: 60, rest: 30, rounds: 6, delay: 3, random: false };
+const SIT_DEFAULTS = { on: [...SIT_OPTIONS], custom: [], work: 60, rest: 30, rounds: 6, delay: 5, random: false };
 const clone = o => JSON.parse(JSON.stringify(o));
 const read = (k, fb) => { try { return JSON.parse(localStorage.getItem(k)) ?? fb; } catch (_) { return fb; } };
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (_) {} };
@@ -307,6 +307,7 @@ S.cmds = { ...clone(DEFAULT_ON), ...(S.cmds || {}) };
 S.custom = { neutral: [], top: [], bottom: [], ...(S.custom || {}) };   // moves you typed in
 S.saved = Array.isArray(S.saved) ? S.saved : [];
 S.sit = { ...clone(SIT_DEFAULTS), ...(S.sit || {}) };
+if (!S.sit.delayV2) { S.sit.delayV2 = true; if (S.sit.delay === 3) S.sit.delay = 5; }   // default pause before "Go" is now 5s
 const allMoves = pos => [...COMMANDS[pos], ...S.custom[pos]];
 // moves renamed in an update keep their on/off setting under the new name
 const RENAMES = { "Shot block": "Down Block" };
@@ -677,7 +678,7 @@ function setPhase(name, secs) {
   if (name === "done") { whistle(); say("Workout complete"); clearInterval(tick); releaseWake(); $("#pause").style.display = "none"; logWorkout(); }
   draw();
 }
-// Situational live: say the start position, then blow the whistle and start the clock
+// Situational live: say the start position, wait, then say "Go!" and start the clock
 function announce(go) {
   const label = st.order[st.round - 1], id = st.callId = (st.callId || 0) + 1;
   st.go = go; st.phase = "call";
@@ -686,13 +687,15 @@ function announce(go) {
   $("#round").textContent = `Round ${st.round} of ${S.sit.rounds} · Wrestlers ready`;
   let fired = false;
   const proceed = () => { if (fired || !st || st.callId !== id || st.paused) return; fired = true; go(); };
-  const text = `Start from ${label}. Wrestlers ready.`, wait = Math.max(1, S.sit.delay) * 1000;   // pause between the call and the whistle
+  const text = `Start from ${label}. Wrestlers ready.`, wait = Math.max(1, S.sit.delay) * 1000;   // pause between the call and "Go"
   if (S.voice && synth) { speak(text, () => setTimeout(proceed, wait)); setTimeout(proceed, 9000 + wait); }   // backstop in case the phone never reports the speech ended
   else setTimeout(proceed, wait);
 }
+// the start signal for Situational Live is the spoken command "Go!" (the whistle sound if the voice is off)
+function goSignal() { if (S.voice && synth) speak("Go!"); else whistle(); }
 function beginWork() {                                   // every round starts here
   const C = cfg();
-  if (st.mode === "sit") return announce(() => { whistle(); setPhase("work", C.work); });
+  if (st.mode === "sit") return announce(() => { goSignal(); setPhase("work", C.work); $("#cmd").textContent = "GO!"; });
   setPhase("work", C.work);
 }
 function draw() { $("#clock").textContent = st.phase === "done" ? "✓" : fmt(st.left); }
