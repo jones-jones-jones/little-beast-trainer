@@ -41,6 +41,14 @@
   .chips { display: flex; flex-wrap: wrap; gap: 8px; }
   .chips button { padding: 9px 13px; border-radius: 20px; border: 1px solid var(--line); background: transparent; color: var(--dim); font-size: .9rem; }
   .chips button.on { background: var(--work); border-color: var(--work); color: #06210f; font-weight: 600; }
+  .chips .custom { display: inline-flex; align-items: center; gap: 4px; padding: 0; border: 1px solid var(--line); border-radius: 20px; }
+  .chips .custom.on { background: var(--work); border-color: var(--work); }
+  .chips .custom button { border: 0; background: transparent; color: inherit; padding: 9px 4px 9px 13px; font: inherit; font-weight: inherit; }
+  .chips .custom button.x { padding: 9px 12px 9px 4px; opacity: .7; }
+  .add { display: flex; gap: 8px; margin-top: 12px; }
+  .add input { flex: 1; min-width: 0; padding: 11px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--text);
+    font-size: 16px; -webkit-user-select: text; user-select: text; }
+  .add button { padding: 0 18px; border-radius: 10px; border: 0; background: var(--text); color: var(--bg); font-size: .95rem; font-weight: 600; }
   .hint { color: var(--accent); font-size: .85rem; margin-top: 10px; display: none; }
   .go:disabled { opacity: .4; }
   .presets { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -82,6 +90,10 @@
       <div class="cmdtools"><button id="cmdAll">All</button><button id="cmdNone">None</button><button id="cmdReset">Reset</button></div>
     </div>
     <div class="chips" id="chips"></div>
+    <form class="add" id="addForm">
+      <input id="addInput" type="text" maxlength="40" placeholder="Add your own move" autocomplete="off" autocapitalize="sentences" enterkeyhint="done">
+      <button type="submit">Add</button>
+    </form>
     <div class="hint" id="hint">Pick at least one command.</div>
   </div>
 
@@ -144,7 +156,9 @@ const DEFAULT_ON = {
 const DEFAULTS = { pos: "neutral", work: 30, rest: 15, rounds: 8, gap: 4, voice: true, beeps: true };
 let S = { ...DEFAULTS, ...JSON.parse(localStorage.getItem("drill") || "{}") };
 if (!NAMES[S.pos]) S.pos = "neutral";                                   // "mix" was removed
-S.cmds = { ...structuredClone(DEFAULT_ON), ...(S.cmds || {}) };
+S.cmds = { ...JSON.parse(JSON.stringify(DEFAULT_ON)), ...(S.cmds || {}) };
+S.custom = { neutral: [], top: [], bottom: [], ...(S.custom || {}) };   // moves you typed in
+const allMoves = pos => [...COMMANDS[pos], ...S.custom[pos]];
 const save = () => localStorage.setItem("drill", JSON.stringify(S));
 const $ = s => document.querySelector(s);
 const fmt = s => s >= 60 ? Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0") : String(s);
@@ -160,19 +174,33 @@ function renderSetup() {
   renderCmds();
 }
 function renderCmds() {
-  const on = S.cmds[S.pos];
-  $("#cmdlabel").textContent = `${NAMES[S.pos]} commands (${on.length}/${COMMANDS[S.pos].length})`;
+  const on = S.cmds[S.pos], list = allMoves(S.pos);
+  $("#cmdlabel").textContent = `${NAMES[S.pos]} commands (${on.length}/${list.length})`;
   $("#chips").innerHTML = "";
-  COMMANDS[S.pos].forEach(c => {
-    const b = document.createElement("button");
-    b.textContent = c; b.className = on.includes(c) ? "on" : "";
-    b.onclick = () => { S.cmds[S.pos] = on.includes(c) ? on.filter(x => x !== c) : [...on, c]; save(); renderCmds(); };
-    $("#chips").appendChild(b);
+  const toggle = c => { S.cmds[S.pos] = on.includes(c) ? on.filter(x => x !== c) : [...on, c]; save(); renderCmds(); };
+  list.forEach(c => {
+    const isCustom = S.custom[S.pos].includes(c), b = document.createElement("button");
+    b.textContent = c; b.onclick = () => toggle(c);
+    if (!isCustom) { b.className = on.includes(c) ? "on" : ""; $("#chips").appendChild(b); return; }
+    const w = document.createElement("span"), x = document.createElement("button");
+    w.className = "custom" + (on.includes(c) ? " on" : ""); x.className = "x"; x.textContent = "×"; x.setAttribute("aria-label", "Remove " + c);
+    x.onclick = () => { S.custom[S.pos] = S.custom[S.pos].filter(m => m !== c); S.cmds[S.pos] = on.filter(m => m !== c); save(); renderCmds(); };
+    w.append(b, x); $("#chips").appendChild(w);
   });
   $("#hint").style.display = on.length ? "none" : "block";
   $("#start").disabled = !on.length;
 }
-$("#cmdAll").onclick = () => { S.cmds[S.pos] = [...COMMANDS[S.pos]]; save(); renderCmds(); };
+$("#addForm").onsubmit = e => {
+  e.preventDefault();
+  const v = $("#addInput").value.trim().replace(/\s+/g, " ");
+  if (!v) return;
+  const list = allMoves(S.pos), hit = list.find(m => m.toLowerCase() === v.toLowerCase());
+  const name = hit || v;
+  if (!hit) S.custom[S.pos].push(name);
+  if (!S.cmds[S.pos].includes(name)) S.cmds[S.pos].push(name);   // a new move starts switched on
+  $("#addInput").value = ""; save(); renderCmds();
+};
+$("#cmdAll").onclick = () => { S.cmds[S.pos] = allMoves(S.pos); save(); renderCmds(); };
 $("#cmdNone").onclick = () => { S.cmds[S.pos] = []; save(); renderCmds(); };
 $("#cmdReset").onclick = () => { S.cmds[S.pos] = [...DEFAULT_ON[S.pos]]; save(); renderCmds(); };
 $("#pos").onclick = e => { if (e.target.dataset.v) { S.pos = e.target.dataset.v; save(); renderSetup(); } };
