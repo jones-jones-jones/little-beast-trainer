@@ -207,7 +207,8 @@
     </div>
     <div class="toggle"><span>Speed</span><input type="range" id="rate" min="0.7" max="1.5" step="0.05"><output id="rateOut"></output></div>
     <div class="toggle"><span>Voice</span><select class="field" id="voiceSel"><option value="">Default voice</option></select></div>
-    <div class="tools" style="margin:8px 0 0"><button class="small" id="testVoice">Test voice</button><button class="small" id="testClip">Test clip</button></div>
+    <div class="sub" id="soundMsg" style="margin-top:8px"></div>
+    <div class="tools" style="margin:8px 0 0"><button class="small" id="testVoice">Test voice</button><button class="small" id="testClip">Test clip</button><button class="small" id="testWhistle">Test whistle</button></div>
   </div>
 
   <div class="group">
@@ -249,6 +250,8 @@
       <div class="row"><span>Round length</span><div class="step" data-o="sit" data-k="work" data-min="15" data-max="600" data-step="15"><button>−</button><output></output><button>+</button></div></div>
       <div class="row"><span>Rest</span><div class="step" data-o="sit" data-k="rest" data-min="0" data-max="180" data-step="5"><button>−</button><output></output><button>+</button></div></div>
       <div class="row"><span>Rounds</span><div class="step" data-o="sit" data-k="rounds" data-min="1" data-max="30" data-step="1"><button>−</button><output></output><button>+</button></div></div>
+      <div class="row"><span>Whistle delay</span><div class="step" data-o="sit" data-k="delay" data-min="1" data-max="10" data-step="1"><button>−</button><output></output><button>+</button></div></div>
+      <div class="sub">Seconds between "Wrestlers ready" and the whistle.</div>
       <div class="toggle" style="margin-top:6px"><span>Random order</span><input type="checkbox" id="sitRandom"></div>
     </div>
 
@@ -293,7 +296,7 @@ const DEFAULT_ON = {
 
 const DEFAULTS = { pos: "neutral", work: 30, rest: 15, rounds: 8, gap: 4, voice: true, beeps: true, vary: true, clips: true, rate: 1.1, voiceURI: "", rotate: false, rotSet: [...ORDER] };
 const SIT_OPTIONS = ["One man down", "Double", "Single", "High crotch", "Half", "Headlock"];
-const SIT_DEFAULTS = { on: [...SIT_OPTIONS], custom: [], work: 60, rest: 30, rounds: 6, random: false };
+const SIT_DEFAULTS = { on: [...SIT_OPTIONS], custom: [], work: 60, rest: 30, rounds: 6, delay: 3, random: false };
 const clone = o => JSON.parse(JSON.stringify(o));
 const read = (k, fb) => { try { return JSON.parse(localStorage.getItem(k)) ?? fb; } catch (_) { return fb; } };
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (_) {} };
@@ -477,16 +480,31 @@ $("#resetAll").onclick = () => {
 $("#clearHist").onclick = () => { if (confirm("Clear your workout history?")) { H = []; write("drillHistory", H); renderHistory(); } };
 
 /* ---------- audio ---------- */
-let ctx;
+let ctx, whistleBuf = null;
+// iPhones can pause the app's audio while the voice is talking, so wake it before every sound
+const withAudio = fn => { if (!ctx) return; if (ctx.state === "running") fn(); else Promise.resolve(ctx.resume()).then(fn, fn); };
 function beep(freq, dur, vol = .4) {
   if (!S.beeps || !ctx) return;
-  const o = ctx.createOscillator(), g = ctx.createGain();
-  o.frequency.value = freq; o.type = "square"; g.gain.value = vol;
-  o.connect(g); g.connect(ctx.destination);
-  g.gain.setValueAtTime(vol, ctx.currentTime); g.gain.exponentialRampToValueAtTime(.001, ctx.currentTime + dur);
-  o.start(); o.stop(ctx.currentTime + dur);
+  withAudio(() => {
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.frequency.value = freq; o.type = "square"; g.gain.value = vol;
+    o.connect(g); g.connect(ctx.destination);
+    g.gain.setValueAtTime(vol, ctx.currentTime); g.gain.exponentialRampToValueAtTime(.001, ctx.currentTime + dur);
+    o.start(); o.stop(ctx.currentTime + dur);
+  });
 }
-function whistle() { beep(2600, .45, .35); setTimeout(() => beep(2600, .35, .35), 200); }
+function loadWhistle() {                                  // a real whistle sound; falls back to beeps if it can't load
+  if (!ctx || whistleBuf) return Promise.resolve();
+  return Promise.resolve().then(() => fetch("whistle.wav")).then(r => r.arrayBuffer()).then(decode).then(b => { whistleBuf = b; }).catch(() => {});   // never blocks a workout
+}
+function whistle() {
+  if (!S.beeps || !ctx) return;
+  withAudio(() => {
+    if (!whistleBuf) { beep(2600, .45, .8); setTimeout(() => beep(2600, .35, .8), 200); return; }
+    const s = ctx.createBufferSource(), g = ctx.createGain();
+    s.buffer = whistleBuf; g.gain.value = 1; s.connect(g); g.connect(ctx.destination); s.start();
+  });
+}
 function speak(text, done) {
   if (!synth) return done && done();
   synth.cancel();
@@ -521,6 +539,12 @@ function playClip() {                                     // random clip that fi
   const src = ctx.createBufferSource(); src.buffer = pool[i]; src.connect(ctx.destination); src.start();
   return true;
 }
+$("#testWhistle").onclick = () => {
+  if (!S.beeps) { $("#soundMsg").textContent = "Whistle & beeps is switched off. Turn it on first."; return; }
+  $("#soundMsg").textContent = "If you hear nothing, check the volume and that the ringer switch (side of the phone) isn't muted.";
+  ctx = ctx || new (window.AudioContext || window.webkitAudioContext)();
+  ctx.resume(); loadWhistle().then(whistle);
+};
 $("#testClip").onclick = () => {
   ctx = ctx || new (window.AudioContext || window.webkitAudioContext)();
   ctx.resume(); loadPool().then(playClip);
@@ -662,9 +686,9 @@ function announce(go) {
   $("#round").textContent = `Round ${st.round} of ${S.sit.rounds} · Wrestlers ready`;
   let fired = false;
   const proceed = () => { if (fired || !st || st.callId !== id || st.paused) return; fired = true; go(); };
-  const text = `Start from ${label}. Wrestlers ready.`;
-  if (S.voice && synth) { speak(text, () => setTimeout(proceed, 400)); setTimeout(proceed, 9000); }   // 9s in case the phone never reports the speech ended
-  else setTimeout(proceed, 2500);
+  const text = `Start from ${label}. Wrestlers ready.`, wait = Math.max(1, S.sit.delay) * 1000;   // pause between the call and the whistle
+  if (S.voice && synth) { speak(text, () => setTimeout(proceed, wait)); setTimeout(proceed, 9000 + wait); }   // backstop in case the phone never reports the speech ended
+  else setTimeout(proceed, wait);
 }
 function beginWork() {                                   // every round starts here
   const C = cfg();
@@ -697,7 +721,7 @@ document.addEventListener("visibilitychange", () => { if (document.visibilitySta
 
 function beginWorkout(mode) {
   ctx = ctx || new (window.AudioContext || window.webkitAudioContext)();
-  ctx.resume(); loadPool();
+  ctx.resume(); loadPool(); loadWhistle();
   if (S.voice && synth) synth.speak(new SpeechSynthesisUtterance(""));  // unlock iOS speech
   st = { mode, phase: "ready", left: 3, round: 0, sinceCall: 0, nextGap: S.gap, paused: false, elapsed: 0, logged: false, pos: S.pos, order: mode === "sit" ? sitOrder() : [] };
   delete $("#run").dataset.big; $("#big").textContent = "Big view";
