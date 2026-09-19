@@ -25,8 +25,8 @@
   h1 { font-size: .95rem; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); margin: 0 0 16px; font-weight: 600; }
   .group { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 14px; margin-bottom: 12px; }
   .label { font-size: .75rem; color: var(--dim); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 10px; }
-  .seg { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
-  .seg button { padding: 12px 0; border-radius: 10px; border: 1px solid var(--line); background: transparent; color: var(--text); font-size: .95rem; font-weight: 600; }
+  .seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .seg button { padding: 12px 4px; border-radius: 10px; border: 1px solid var(--line); background: transparent; color: var(--text); font-size: .95rem; font-weight: 600; }
   .seg button.on { background: var(--text); color: var(--bg); border-color: var(--text); }
   .row { display: flex; align-items: center; justify-content: space-between; padding: 6px 0; }
   .row + .row { border-top: 1px solid var(--line); }
@@ -34,6 +34,15 @@
   .step { display: flex; align-items: center; gap: 14px; }
   .step button { width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--line); background: transparent; color: var(--text); font-size: 1.3rem; }
   .step output { min-width: 56px; text-align: center; font-variant-numeric: tabular-nums; font-size: 1.15rem; font-weight: 600; }
+.cmdhead { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .cmdhead .label { margin: 0; }
+  .cmdtools { display: flex; gap: 6px; }
+  .cmdtools button { padding: 6px 12px; border-radius: 16px; border: 1px solid var(--line); background: transparent; color: var(--dim); font-size: .8rem; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chips button { padding: 9px 13px; border-radius: 20px; border: 1px solid var(--line); background: transparent; color: var(--dim); font-size: .9rem; }
+  .chips button.on { background: var(--work); border-color: var(--work); color: #06210f; font-weight: 600; }
+  .hint { color: var(--accent); font-size: .85rem; margin-top: 10px; display: none; }
+  .go:disabled { opacity: .4; }
   .presets { display: flex; gap: 8px; flex-wrap: wrap; }
   .presets button { padding: 9px 14px; border-radius: 20px; border: 1px solid var(--line); background: transparent; color: var(--text); font-size: .85rem; }
   .toggle { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; }
@@ -61,11 +70,19 @@
   <div class="group">
     <div class="label">Position</div>
     <div class="seg" id="pos">
-      <button data-v="neutral">Neutral</button>
+      <button data-v="neutral">Stance and Motion</button>
       <button data-v="top">Top</button>
       <button data-v="bottom">Bottom</button>
-      <button data-v="mix">Mix</button>
     </div>
+  </div>
+
+  <div class="group">
+    <div class="cmdhead">
+      <div class="label" id="cmdlabel">Commands</div>
+      <div class="cmdtools"><button id="cmdAll">All</button><button id="cmdNone">None</button><button id="cmdReset">Reset</button></div>
+    </div>
+    <div class="chips" id="chips"></div>
+    <div class="hint" id="hint">Pick at least one command.</div>
   </div>
 
   <div class="group">
@@ -103,14 +120,31 @@
 </div>
 
 <script>
+const NAMES = { neutral: "Stance and Motion", top: "Top", bottom: "Bottom" };
+// Each list holds only moves that belong to that position.
 const COMMANDS = {
-  neutral: ["Shot", "Level change", "Hand fight", "Snap down", "Sprawl", "Re-shot", "Duck under", "Head inside", "Circle", "Finish the leg", "Push pull", "Get to your feet"],
-  top:     ["Tight waist", "Chop", "Half nelson", "Cross face", "Break him down", "Ride", "Cut", "Hips heavy", "Look for the turn", "Clear the leg"],
-  bottom:  ["Stand up", "Sit out", "Switch", "Hip heist", "Build a base", "Hand control", "Tripod", "Get to your feet", "Escape", "Come up"]
+  // on your feet: stance, motion, hand fighting, setups, shots, finishes, and defending shots
+  neutral: ["Stance", "Circle", "Shuffle", "Switch stance", "Backstep", "Level change", "Hand fight", "Inside tie", "Collar tie", "Wrist control",
+            "Underhook", "Overhook", "Snap down", "Push pull", "Arm drag", "Drop step", "Penetration step", "Shot", "Re-shot", "Single leg", "Double leg",
+            "High crotch", "Ankle pick", "Duck under", "Head inside", "Finish the leg", "Front headlock", "Go behind", "Sprawl"],
+  // on top: control, rides, breakdowns, turns, and finishing the pin
+  top:     ["Tight waist", "Chop", "Cut", "Cross face", "Half nelson", "Power half", "Break him down", "Hips heavy", "Ride", "Spiral ride", "Leg ride",
+            "Far ankle", "Wrist control", "Clear the leg", "Gut wrench", "Cradle", "Tilt", "Arm bar", "Turk", "Stack", "Back step", "Chop and drive", "Look for the turn"],
+  // on bottom: base, grip breaking, stand-ups, sit-outs, switches, rolls, and reversals
+  bottom:  ["Build a base", "Hand control", "Break the grip", "Hand fight", "Elbow post", "Hips back", "Stand up", "Sit out", "Sit through", "Switch", "Hip heist",
+            "Tripod", "Turn the corner", "Whizzer", "Granby roll", "Peterson roll", "Reverse", "Escape"]
+};
+// what's switched on before you change anything
+const DEFAULT_ON = {
+  neutral: ["Stance", "Circle", "Level change", "Hand fight", "Snap down", "Push pull", "Shot", "Re-shot", "Duck under", "Head inside", "Finish the leg", "Sprawl"],
+  top:     ["Tight waist", "Chop", "Cut", "Cross face", "Half nelson", "Break him down", "Hips heavy", "Ride", "Clear the leg", "Look for the turn"],
+  bottom:  ["Build a base", "Hand control", "Break the grip", "Stand up", "Sit out", "Switch", "Hip heist", "Tripod", "Granby roll", "Escape"]
 };
 
 const DEFAULTS = { pos: "neutral", work: 30, rest: 15, rounds: 8, gap: 4, voice: true, beeps: true };
 let S = { ...DEFAULTS, ...JSON.parse(localStorage.getItem("drill") || "{}") };
+if (!NAMES[S.pos]) S.pos = "neutral";                                   // "mix" was removed
+S.cmds = { ...structuredClone(DEFAULT_ON), ...(S.cmds || {}) };
 const save = () => localStorage.setItem("drill", JSON.stringify(S));
 const $ = s => document.querySelector(s);
 const fmt = s => s >= 60 ? Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0") : String(s);
@@ -123,7 +157,24 @@ function renderSetup() {
     el.querySelector("output").textContent = k === "gap" ? S[k] + "s" : k === "rounds" ? S[k] : fmt(S[k]) + (S[k] < 60 ? "s" : "");
   });
   $("#voice").checked = S.voice; $("#beeps").checked = S.beeps;
+  renderCmds();
 }
+function renderCmds() {
+  const on = S.cmds[S.pos];
+  $("#cmdlabel").textContent = `${NAMES[S.pos]} commands (${on.length}/${COMMANDS[S.pos].length})`;
+  $("#chips").innerHTML = "";
+  COMMANDS[S.pos].forEach(c => {
+    const b = document.createElement("button");
+    b.textContent = c; b.className = on.includes(c) ? "on" : "";
+    b.onclick = () => { S.cmds[S.pos] = on.includes(c) ? on.filter(x => x !== c) : [...on, c]; save(); renderCmds(); };
+    $("#chips").appendChild(b);
+  });
+  $("#hint").style.display = on.length ? "none" : "block";
+  $("#start").disabled = !on.length;
+}
+$("#cmdAll").onclick = () => { S.cmds[S.pos] = [...COMMANDS[S.pos]]; save(); renderCmds(); };
+$("#cmdNone").onclick = () => { S.cmds[S.pos] = []; save(); renderCmds(); };
+$("#cmdReset").onclick = () => { S.cmds[S.pos] = [...DEFAULT_ON[S.pos]]; save(); renderCmds(); };
 $("#pos").onclick = e => { if (e.target.dataset.v) { S.pos = e.target.dataset.v; save(); renderSetup(); } };
 document.querySelectorAll(".step").forEach(el => {
   const [minus, plus] = el.querySelectorAll("button"); const k = el.dataset.k;
@@ -157,7 +208,7 @@ function say(text) {
 /* ---------- workout engine ---------- */
 let st = null, tick = null, wake = null, lastCmd = "";
 const pick = () => {
-  const pool = S.pos === "mix" ? COMMANDS[["neutral", "top", "bottom"][Math.floor(Math.random() * 3)]] : COMMANDS[S.pos];
+  const pool = S.cmds[S.pos];
   let c; do { c = pool[Math.floor(Math.random() * pool.length)]; } while (c === lastCmd && pool.length > 1);
   return lastCmd = c;
 };
@@ -168,7 +219,7 @@ function setPhase(name, secs) {
   $("#phase").textContent = { ready: "Get ready", work: "Work", rest: "Rest", done: "Done" }[name];
   $("#round").textContent = name === "ready" ? "" : `Round ${st.round} of ${S.rounds}`;
   $("#cmd").textContent = "";
-  if (name === "work") { whistle(); if (S.pos !== "mix") say(S.pos === "neutral" ? "Neutral" : S.pos === "top" ? "Top" : "Bottom"); }
+  if (name === "work") { whistle(); say(NAMES[S.pos]); }
   if (name === "rest") { beep(880, .3); say("Rest"); }
   if (name === "done") { whistle(); say("Workout complete"); clearInterval(tick); releaseWake(); $("#pause").style.display = "none"; }
   draw();
