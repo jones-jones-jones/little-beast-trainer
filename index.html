@@ -320,7 +320,7 @@ const DEFAULT_ON = {
   bottom:  ["Hand control", "Break the grip", "Stand up", "Sit out", "Switch", "Hip heist", "Tripod", "Granby roll"]
 };
 
-const DEFAULTS = { pos: "neutral", work: 30, rest: 15, rounds: 8, gap: 4, voice: true, beeps: true, vary: true, clips: true, recorded: true, delay: 5, rate: 1.1, voiceURI: "", rotate: false, rotSet: [...ORDER] };
+const DEFAULTS = { pos: "neutral", work: 60, rest: 15, rounds: 8, gap: 4, voice: true, beeps: true, vary: true, clips: true, recorded: true, delay: 5, rate: 1.1, voiceURI: "", rotate: false, rotSet: [...ORDER] };
 const SIT_OPTIONS = ["One man down", "Double", "Single", "High crotch", "Half", "Headlock"];
 const SIT_DEFAULTS = { on: [...SIT_OPTIONS], custom: [], work: 60, rest: 30, rounds: 6, delay: 5, random: false };
 const clone = o => JSON.parse(JSON.stringify(o));
@@ -332,6 +332,7 @@ if (!NAMES[S.pos]) S.pos = "neutral";                                   // "mix"
 S.cmds = { ...clone(DEFAULT_ON), ...(S.cmds || {}) };
 S.custom = { neutral: [], top: [], bottom: [], ...(S.custom || {}) };   // moves you typed in
 S.saved = Array.isArray(S.saved) ? S.saved : [];
+if (!S.workV2) { S.workV2 = true; if (S.work === 30) S.work = 60; }   // default round is now 1 minute
 S.sit = { ...clone(SIT_DEFAULTS), ...(S.sit || {}) };
 if (!S.sit.delayV2) { S.sit.delayV2 = true; if (S.sit.delay === 3) S.sit.delay = 5; }   // default pause before "Go" is now 5s
 const allMoves = pos => [...COMMANDS[pos], ...S.custom[pos]];
