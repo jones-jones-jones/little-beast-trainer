@@ -232,9 +232,10 @@
       <div id="ownList"></div>
     </div>
     <div class="toggle"><div><div>Recorded coach voice</div><div class="sub">Plays recorded audio for every command. Anything not recorded, like moves you add, uses the phone voice.</div></div><input type="checkbox" id="recordedVoice"></div>
+    <div class="toggle"><span>Start signal</span><select class="field" id="startSignal"><option value="whistle">Whistle</option><option value="go">Voice says "Go!"</option></select></div>
     <div class="toggle"><span>Speed</span><input type="range" id="rate" min="0.7" max="1.5" step="0.05"><output id="rateOut"></output></div>
     <div class="toggle"><span>Phone voice</span><select class="field" id="voiceSel"><option value="">Default voice</option></select></div>
-    <div class="tools" style="margin:8px 0 0"><button class="small" id="testVoice">Test voice</button><button class="small" id="testClip">Test clip</button></div>
+    <div class="tools" style="margin:8px 0 0"><button class="small" id="testVoice">Test voice</button><button class="small" id="testStart">Test start</button><button class="small" id="testClip">Test clip</button></div>
   </div>
 
   <div class="group">
@@ -320,7 +321,7 @@ const DEFAULT_ON = {
   bottom:  ["Hand control", "Break the grip", "Stand up", "Sit out", "Switch", "Hip heist", "Tripod", "Granby roll"]
 };
 
-const DEFAULTS = { pos: "neutral", work: 60, rest: 15, rounds: 8, gap: 4, voice: true, beeps: true, vary: true, clips: true, recorded: true, delay: 5, rate: 1.1, voiceURI: "", rotate: false, rotSet: [...ORDER] };
+const DEFAULTS = { pos: "neutral", work: 60, rest: 15, rounds: 8, gap: 4, voice: true, beeps: true, vary: true, clips: true, recorded: true, startSignal: "whistle", delay: 5, rate: 1.1, voiceURI: "", rotate: false, rotSet: [...ORDER] };
 const SIT_OPTIONS = ["One man down", "Double", "Single", "High crotch", "Half", "Headlock"];
 const SIT_DEFAULTS = { on: [...SIT_OPTIONS], custom: [], work: 60, rest: 30, rounds: 6, delay: 5, random: false };
 const clone = o => JSON.parse(JSON.stringify(o));
@@ -358,7 +359,7 @@ function renderSetup() {
     const k = el.dataset.k, v = (el.dataset.o === "sit" ? S.sit : S)[k];
     el.querySelector("output").textContent = k === "gap" ? v + "s" : k === "rounds" ? v : fmt(v) + (v < 60 ? "s" : "");
   });
-  $("#voice").checked = S.voice; $("#beeps").checked = S.beeps; $("#vary").checked = S.vary; $("#recordedVoice").checked = S.recorded; $("#clips").checked = S.clips; $("#ownBox").classList.toggle("show", !S.clips); if (!S.clips) renderOwn();
+  $("#voice").checked = S.voice; $("#beeps").checked = S.beeps; $("#vary").checked = S.vary; $("#recordedVoice").checked = S.recorded; $("#startSignal").value = S.startSignal; $("#clips").checked = S.clips; $("#ownBox").classList.toggle("show", !S.clips); if (!S.clips) renderOwn();
   $("#rate").value = S.rate; $("#rateOut").textContent = (+S.rate).toFixed(2).replace(/0$/, "") + "×";
   $("#rotate").checked = S.rotate; $("#rotBox").classList.toggle("show", S.rotate);
   document.querySelectorAll("#rotSet button").forEach(b => b.classList.toggle("on", S.rotSet.includes(b.dataset.rot)));
@@ -491,9 +492,11 @@ $("#voice").onchange = e => { S.voice = e.target.checked; save(); };
 $("#beeps").onchange = e => { S.beeps = e.target.checked; save(); };
 $("#vary").onchange = e => { S.vary = e.target.checked; save(); };
 $("#recordedVoice").onchange = e => { S.recorded = e.target.checked; save(); };
+$("#startSignal").onchange = e => { S.startSignal = e.target.value; save(); };
 $("#clips").onchange = e => { S.clips = e.target.checked; save(); renderSetup(); };
 $("#rate").oninput = e => { S.rate = +e.target.value; save(); renderSetup(); };
 $("#voiceSel").onchange = e => { S.voiceURI = e.target.value; S.voiceSet = true; save(); };
+$("#testStart").onclick = () => goSignal();
 $("#testVoice").onclick = () => speak("Level change", () => setTimeout(() => speak("Shot", () => setTimeout(() => speak("Go!"), 300)), 300));
 // Evan is the house voice: if it's installed (Premium, then Enhanced, then standard) and you haven't picked one yourself, use it
 const bestEvan = vs => { const e = vs.filter(v => /^evan\b/i.test(v.name)); return e.find(v => /premium/i.test(v.name)) || e.find(v => /enhanced/i.test(v.name)) || e[0]; };
@@ -543,21 +546,24 @@ const vslug = t => t.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g,
 const voiceUrls = {}, voiceEl = new Audio();
 const SILENT_WAV = "data:audio/wav;base64,UklGRkQDAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YSADAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==";
 function loadVoicePack() {                                // a missing file just means that phrase uses the phone voice
-  return Promise.all(VOICE_PHRASES.map(p => Promise.resolve().then(() => fetch(`voice/${vslug(p)}.m4a`))
-    .then(r => r.ok ? r.blob() : null).then(b => { if (b) voiceUrls[vslug(p)] = URL.createObjectURL(new Blob([b], { type: "audio/mp4" })); }).catch(() => {})));
+  return Promise.all([...VOICE_PHRASES.map(vslug), "whistle"].map(s => Promise.resolve().then(() => fetch(`voice/${s}.m4a`))
+    .then(r => r.ok ? r.blob() : null).then(b => { if (b) voiceUrls[s] = URL.createObjectURL(new Blob([b], { type: "audio/mp4" })); }).catch(() => {})));
 }
 function unlockVoice() { try { voiceEl.src = SILENT_WAV; const p = voiceEl.play(); if (p && p.catch) p.catch(() => {}); } catch (_) {} }   // the first tap lets the player speak later
 function stopVoice() { voiceEl.onended = voiceEl.onerror = null; try { voiceEl.pause(); } catch (_) {} if (synth) synth.cancel(); }
+function playClipUrl(url, done, fallback) {              // play one recording; if it is blocked or fails, run the fallback instead
+  stopVoice();
+  const bail = () => { voiceEl.onended = voiceEl.onerror = null; fallback(); };
+  voiceEl.onended = () => { voiceEl.onended = voiceEl.onerror = null; if (done) done(); };
+  voiceEl.onerror = bail;
+  voiceEl.src = url;
+  const p = voiceEl.play();
+  if (p && p.catch) p.catch(bail);
+}
 function speak(text, done) {
   const url = S.recorded && voiceUrls[vslug(text)];
   if (!url) return speakTTS(text, done);
-  stopVoice();
-  const fallback = () => { voiceEl.onended = voiceEl.onerror = null; speakTTS(text, done); };
-  voiceEl.onended = () => { voiceEl.onended = voiceEl.onerror = null; if (done) done(); };
-  voiceEl.onerror = fallback;
-  voiceEl.src = url;
-  const p = voiceEl.play();
-  if (p && p.catch) p.catch(fallback);                    // blocked or failed: use the phone voice instead
+  playClipUrl(url, done, () => speakTTS(text, done));     // fall back to the phone voice
 }
 function say(text) { $("#cmd").textContent = text; if (S.voice) speak(text); }
 
@@ -730,8 +736,12 @@ function announce(go) {
   if (S.voice && synth) { speak(text, () => setTimeout(proceed, wait)); setTimeout(proceed, 9000 + wait); }   // backstop in case the phone never reports the speech ended
   else setTimeout(proceed, wait);
 }
-// the start signal is the spoken command "Go!" (a double beep instead if the voice is off)
-function goSignal() { if (S.voice && synth) speak("Go!"); else { beep(1320, .18, .6); setTimeout(() => beep(1320, .18, .6), 240); } }
+// the start signal: a referee whistle (or the spoken "Go!" if chosen, or if the whistle can't play); a double beep if the voice is off too
+function goSignal() {
+  const spokenGo = () => { if (S.voice && synth) speak("Go!"); else { beep(1320, .18, .6); setTimeout(() => beep(1320, .18, .6), 240); } };
+  if (S.startSignal === "whistle" && voiceUrls.whistle) return playClipUrl(voiceUrls.whistle, null, spokenGo);
+  spokenGo();
+}
 function beginWork() {                                   // every round starts here
   const C = cfg();
   if (st.mode !== "sit") st.pos = roundPos(st.round);
