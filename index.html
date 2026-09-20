@@ -29,8 +29,11 @@
   #home { display: none; min-height: 100vh; min-height: 100dvh; max-width: 480px; margin: 0 auto; padding: 28px 0 calc(28px + env(safe-area-inset-bottom));
     flex-direction: column; align-items: center; justify-content: center; text-align: center; }
   body[data-screen=home] #home { display: flex; }
+  #drill { display: none; }
   body[data-screen=drill] #drill { display: block; }
-  body[data-screen=home] #drill { display: none; }
+  .menu { display: none; max-width: 480px; margin: 0 auto; padding: 16px 0 calc(28px + env(safe-area-inset-bottom)); }
+  body[data-screen=solo] #solo, body[data-screen=partner] #partner { display: block; }
+  .menu .tiles { margin-top: 8px; }
   #home .logo { width: min(58vw, 230px); height: auto; aspect-ratio: 1; border-radius: 26px; box-shadow: 0 10px 40px rgba(0,0,0,.45); margin-bottom: 22px; }
   #home h1 .a { display: block; font-size: clamp(2rem, 9.5vw, 2.7rem); letter-spacing: .06em; color: var(--accent); }
   #home h1 .b { display: block; font-size: clamp(.95rem, 4.4vw, 1.2rem); letter-spacing: .3em; color: var(--text); margin-top: 8px; font-weight: 600; }
@@ -154,15 +157,29 @@
   <img class="logo" src="logo-360.png" alt="Little Beast logo">
   <h1><span class="a">Little Beast</span> <span class="b">Wrestling Trainer</span></h1>
   <div class="tiles">
+    <button class="tile" data-menu="solo"><span><b>Solo Training</b><small>Drills you can do on your own</small></span><span class="chev">›</span></button>
+    <button class="tile live" data-menu="partner"><span><b>Training with a Partner</b><small>Live wrestling and position work</small></span><span class="chev">›</span></button>
+  </div>
+</div>
+
+<div id="solo" class="menu">
+  <div class="drillhead"><button class="back" data-home>‹ Home</button><h2>Solo Training</h2><img src="logo.png" alt=""></div>
+  <div class="tiles">
     <button class="tile" data-go="neutral"><span><b>Stance and Motion</b><small>Drills on your feet</small></span><span class="chev">›</span></button>
+  </div>
+</div>
+
+<div id="partner" class="menu">
+  <div class="drillhead"><button class="back" data-home>‹ Home</button><h2>With a Partner</h2><img src="logo.png" alt=""></div>
+  <div class="tiles">
+    <button class="tile live" id="openSit"><span><b>Situational Live</b><small>Go live from a set start position</small></span><span class="chev">›</span></button>
     <button class="tile" data-go="top"><span><b>Top Drills</b><small>Rides, breakdowns and turns</small></span><span class="chev">›</span></button>
     <button class="tile" data-go="bottom"><span><b>Bottom Drills</b><small>Stand-ups, escapes and reversals</small></span><span class="chev">›</span></button>
-    <button class="tile live" id="openSit"><span><b>Situational Live</b><small>Go live from a set start position</small></span><span class="chev">›</span></button>
   </div>
 </div>
 
 <main id="drill">
-  <div class="drillhead"><button class="back" id="drillBack">‹ Home</button><h2 id="drillTitle">Stance and Motion</h2><img src="logo.png" alt=""></div>
+  <div class="drillhead"><button class="back" id="drillBack">‹ Back</button><h2 id="drillTitle">Stance and Motion</h2><img src="logo.png" alt=""></div>
 
   <div class="group">
     <div class="cmdhead">
@@ -397,8 +414,11 @@ function updateStart() {
 
 const TITLES = { neutral: "Stance and Motion", top: "Top Drills", bottom: "Bottom Drills" };
 const showScreen = s => { document.body.dataset.screen = s; window.scrollTo(0, 0); };
-document.querySelectorAll("[data-go]").forEach(b => b.onclick = () => { S.pos = b.dataset.go; save(); renderSetup(); showScreen("drill"); });
-$("#drillBack").onclick = () => showScreen("home");
+let lastMenu = "home";                                       // the menu a drill was opened from, so Back returns there
+document.querySelectorAll("[data-menu]").forEach(b => b.onclick = () => showScreen(b.dataset.menu));
+document.querySelectorAll("[data-home]").forEach(b => b.onclick = () => showScreen("home"));
+document.querySelectorAll("[data-go]").forEach(b => b.onclick = () => { lastMenu = document.body.dataset.screen; S.pos = b.dataset.go; save(); renderSetup(); showScreen("drill"); });
+$("#drillBack").onclick = () => showScreen(lastMenu);
 $("#cmdAll").onclick = () => { S.cmds[S.pos] = allMoves(S.pos); save(); renderCmds(); };
 $("#cmdNone").onclick = () => { S.cmds[S.pos] = []; save(); renderCmds(); };
 $("#cmdReset").onclick = () => { S.cmds[S.pos] = [...DEFAULT_ON[S.pos]]; save(); renderCmds(); };
