@@ -231,8 +231,9 @@
       <div class="top"><button class="rec" id="rec">● Record</button><span class="msg" id="recMsg"></span></div>
       <div id="ownList"></div>
     </div>
+    <div class="toggle"><div><div>Recorded coach voice</div><div class="sub">Plays recorded audio for every command. Anything not recorded, like moves you add, uses the phone voice.</div></div><input type="checkbox" id="recordedVoice"></div>
     <div class="toggle"><span>Speed</span><input type="range" id="rate" min="0.7" max="1.5" step="0.05"><output id="rateOut"></output></div>
-    <div class="toggle"><span>Voice</span><select class="field" id="voiceSel"><option value="">Default voice</option></select></div>
+    <div class="toggle"><span>Phone voice</span><select class="field" id="voiceSel"><option value="">Default voice</option></select></div>
     <div class="tools" style="margin:8px 0 0"><button class="small" id="testVoice">Test voice</button><button class="small" id="testClip">Test clip</button></div>
   </div>
 
@@ -319,7 +320,7 @@ const DEFAULT_ON = {
   bottom:  ["Hand control", "Break the grip", "Stand up", "Sit out", "Switch", "Hip heist", "Tripod", "Granby roll"]
 };
 
-const DEFAULTS = { pos: "neutral", work: 30, rest: 15, rounds: 8, gap: 4, voice: true, beeps: true, vary: true, clips: true, delay: 5, rate: 1.1, voiceURI: "", rotate: false, rotSet: [...ORDER] };
+const DEFAULTS = { pos: "neutral", work: 30, rest: 15, rounds: 8, gap: 4, voice: true, beeps: true, vary: true, clips: true, recorded: true, delay: 5, rate: 1.1, voiceURI: "", rotate: false, rotSet: [...ORDER] };
 const SIT_OPTIONS = ["One man down", "Double", "Single", "High crotch", "Half", "Headlock"];
 const SIT_DEFAULTS = { on: [...SIT_OPTIONS], custom: [], work: 60, rest: 30, rounds: 6, delay: 5, random: false };
 const clone = o => JSON.parse(JSON.stringify(o));
@@ -356,7 +357,7 @@ function renderSetup() {
     const k = el.dataset.k, v = (el.dataset.o === "sit" ? S.sit : S)[k];
     el.querySelector("output").textContent = k === "gap" ? v + "s" : k === "rounds" ? v : fmt(v) + (v < 60 ? "s" : "");
   });
-  $("#voice").checked = S.voice; $("#beeps").checked = S.beeps; $("#vary").checked = S.vary; $("#clips").checked = S.clips; $("#ownBox").classList.toggle("show", !S.clips); if (!S.clips) renderOwn();
+  $("#voice").checked = S.voice; $("#beeps").checked = S.beeps; $("#vary").checked = S.vary; $("#recordedVoice").checked = S.recorded; $("#clips").checked = S.clips; $("#ownBox").classList.toggle("show", !S.clips); if (!S.clips) renderOwn();
   $("#rate").value = S.rate; $("#rateOut").textContent = (+S.rate).toFixed(2).replace(/0$/, "") + "×";
   $("#rotate").checked = S.rotate; $("#rotBox").classList.toggle("show", S.rotate);
   document.querySelectorAll("#rotSet button").forEach(b => b.classList.toggle("on", S.rotSet.includes(b.dataset.rot)));
@@ -488,10 +489,11 @@ function logWorkout() {
 $("#voice").onchange = e => { S.voice = e.target.checked; save(); };
 $("#beeps").onchange = e => { S.beeps = e.target.checked; save(); };
 $("#vary").onchange = e => { S.vary = e.target.checked; save(); };
+$("#recordedVoice").onchange = e => { S.recorded = e.target.checked; save(); };
 $("#clips").onchange = e => { S.clips = e.target.checked; save(); renderSetup(); };
 $("#rate").oninput = e => { S.rate = +e.target.value; save(); renderSetup(); };
 $("#voiceSel").onchange = e => { S.voiceURI = e.target.value; S.voiceSet = true; save(); };
-$("#testVoice").onclick = () => { speak("Stance and Motion. Level change. Shot."); };
+$("#testVoice").onclick = () => speak("Level change", () => setTimeout(() => speak("Shot", () => setTimeout(() => speak("Go!"), 300)), 300));
 // Evan is the house voice: if it's installed (Premium, then Enhanced, then standard) and you haven't picked one yourself, use it
 const bestEvan = vs => { const e = vs.filter(v => /^evan\b/i.test(v.name)); return e.find(v => /premium/i.test(v.name)) || e.find(v => /enhanced/i.test(v.name)) || e[0]; };
 function loadVoices() {
@@ -525,13 +527,36 @@ function beep(freq, dur, vol = .4) {
     o.start(); o.stop(ctx.currentTime + dur);
   });
 }
-function speak(text, done) {
+function speakTTS(text, done) {
   if (!synth) return done && done();
   synth.cancel();
   const u = new SpeechSynthesisUtterance(text); u.rate = S.rate;
   const v = S.voiceURI && synth.getVoices().find(v => v.voiceURI === S.voiceURI); if (v) u.voice = v;
   if (done) u.onend = u.onerror = () => done();
   synth.speak(u);
+}
+/* ---------- recorded coach voice: real audio for every phrase we have a file for, phone voice for the rest ---------- */
+const VOICE_PHRASES = [...new Set([...ORDER.flatMap(p => COMMANDS[p]), "Go!", "Rest", "Workout complete",
+  ...ORDER.map(p => `${NAMES[p]}. Wrestlers ready.`), ...SIT_OPTIONS.map(s => `Start from ${s}. Wrestlers ready.`)])];
+const vslug = t => t.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+const voiceUrls = {}, voiceEl = new Audio();
+const SILENT_WAV = "data:audio/wav;base64,UklGRkQDAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YSADAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==";
+function loadVoicePack() {                                // a missing file just means that phrase uses the phone voice
+  return Promise.all(VOICE_PHRASES.map(p => Promise.resolve().then(() => fetch(`voice/${vslug(p)}.m4a`))
+    .then(r => r.ok ? r.blob() : null).then(b => { if (b) voiceUrls[vslug(p)] = URL.createObjectURL(new Blob([b], { type: "audio/mp4" })); }).catch(() => {})));
+}
+function unlockVoice() { try { voiceEl.src = SILENT_WAV; const p = voiceEl.play(); if (p && p.catch) p.catch(() => {}); } catch (_) {} }   // the first tap lets the player speak later
+function stopVoice() { voiceEl.onended = voiceEl.onerror = null; try { voiceEl.pause(); } catch (_) {} if (synth) synth.cancel(); }
+function speak(text, done) {
+  const url = S.recorded && voiceUrls[vslug(text)];
+  if (!url) return speakTTS(text, done);
+  stopVoice();
+  const fallback = () => { voiceEl.onended = voiceEl.onerror = null; speakTTS(text, done); };
+  voiceEl.onended = () => { voiceEl.onended = voiceEl.onerror = null; if (done) done(); };
+  voiceEl.onerror = fallback;
+  voiceEl.src = url;
+  const p = voiceEl.play();
+  if (p && p.catch) p.catch(fallback);                    // blocked or failed: use the phone voice instead
 }
 function say(text) { $("#cmd").textContent = text; if (S.voice) speak(text); }
 
@@ -737,7 +762,7 @@ document.addEventListener("visibilitychange", () => { if (document.visibilitySta
 
 function beginWorkout(mode) {
   ctx = ctx || new (window.AudioContext || window.webkitAudioContext)();
-  ctx.resume(); loadPool();
+  ctx.resume(); loadPool(); unlockVoice();
   if (S.voice && synth) synth.speak(new SpeechSynthesisUtterance(""));  // unlock iOS speech
   st = { mode, phase: "ready", left: 3, round: 0, sinceCall: 0, nextGap: S.gap, paused: false, elapsed: 0, logged: false, pos: S.pos, order: mode === "sit" ? sitOrder() : [] };
   delete $("#run").dataset.big; $("#big").textContent = "Big view";
@@ -750,7 +775,7 @@ $("#start").onclick = () => beginWorkout("drill");
 $("#sitStart").onclick = () => beginWorkout("sit");
 $("#pause").onclick = () => {
   st.paused = !st.paused; $("#pause").textContent = st.paused ? "Resume" : "Pause";
-  if (st.paused) { synth?.cancel(); st.callId = (st.callId || 0) + 1; }    // drop any announcement in progress
+  if (st.paused) { stopVoice(); st.callId = (st.callId || 0) + 1; }    // drop any announcement in progress
   else if (st.phase === "call") announce(st.go);                            // resume: say the call again
 };
 $("#big").onclick = () => {
@@ -760,12 +785,13 @@ $("#big").onclick = () => {
   try { if (on && document.documentElement.requestFullscreen) document.documentElement.requestFullscreen(); else if (!on && document.fullscreenElement) document.exitFullscreen(); } catch (_) {}
 };
 $("#stop").onclick = () => {
-  logWorkout(); clearInterval(tick); synth?.cancel(); releaseWake();
+  logWorkout(); clearInterval(tick); stopVoice(); releaseWake();
   try { if (document.fullscreenElement) document.exitFullscreen(); } catch (_) {}
   $("#run").className = ""; st = null;
 };
 
 renderSetup();
+loadVoicePack();
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
 </script>
 </body>
