@@ -490,11 +490,14 @@ $("#beeps").onchange = e => { S.beeps = e.target.checked; save(); };
 $("#vary").onchange = e => { S.vary = e.target.checked; save(); };
 $("#clips").onchange = e => { S.clips = e.target.checked; save(); renderSetup(); };
 $("#rate").oninput = e => { S.rate = +e.target.value; save(); renderSetup(); };
-$("#voiceSel").onchange = e => { S.voiceURI = e.target.value; save(); };
+$("#voiceSel").onchange = e => { S.voiceURI = e.target.value; S.voiceSet = true; save(); };
 $("#testVoice").onclick = () => { speak("Stance and Motion. Level change. Shot."); };
+// Evan is the house voice: if it's installed (Premium, then Enhanced, then standard) and you haven't picked one yourself, use it
+const bestEvan = vs => { const e = vs.filter(v => /^evan\b/i.test(v.name)); return e.find(v => /premium/i.test(v.name)) || e.find(v => /enhanced/i.test(v.name)) || e[0]; };
 function loadVoices() {
   if (!synth) return;
   const vs = synth.getVoices().filter(v => /^en/i.test(v.lang)), sel = $("#voiceSel");
+  if (!S.voiceSet) { const evan = bestEvan(vs); if (evan) { S.voiceURI = evan.voiceURI; S.voiceSet = true; save(); } }
   sel.innerHTML = ""; sel.add(new Option("Default voice", ""));
   vs.forEach(v => sel.add(new Option(`${v.name} (${v.lang})`, v.voiceURI)));
   sel.value = vs.some(v => v.voiceURI === S.voiceURI) ? S.voiceURI : "";
