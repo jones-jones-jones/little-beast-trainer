@@ -677,7 +677,7 @@ function setPhase(name, secs) {
   $("#round").textContent = name === "ready" ? "" : `Round ${st.round} of ${C.rounds}` +
     (name === "work" && sit ? ` · ${st.order[st.round - 1]}` : name === "work" && S.rotate ? ` · ${NAMES[st.pos]}` : "");
   $("#cmd").textContent = "";
-  if (name === "work" && !sit) say(`${NAMES[st.pos]}. Go!`);            // the spoken command starts the round
+  if (name === "work" && !sit) { $("#cmd").textContent = "GO!"; goSignal(S.rotate ? `${NAMES[st.pos]}. Go!` : "Go!"); }   // every round starts with the spoken command
   if (name === "rest") {
     beep(880, .3); say("Rest");
     if (C.rest >= 5) setTimeout(() => { if (st && st.phase === "rest" && !st.paused) playClip(); }, 1200);
@@ -699,8 +699,8 @@ function announce(go) {
   if (S.voice && synth) { speak(text, () => setTimeout(proceed, wait)); setTimeout(proceed, 9000 + wait); }   // backstop in case the phone never reports the speech ended
   else setTimeout(proceed, wait);
 }
-// the start signal is the spoken command "Go!" (a double beep instead if the voice is off)
-function goSignal() { if (S.voice && synth) speak("Go!"); else { beep(1320, .18, .6); setTimeout(() => beep(1320, .18, .6), 240); } }
+// the start signal for every round is the spoken command "Go!" (a double beep instead if the voice is off)
+function goSignal(text = "Go!") { if (S.voice && synth) speak(text); else { beep(1320, .18, .6); setTimeout(() => beep(1320, .18, .6), 240); } }
 function beginWork() {                                   // every round starts here
   const C = cfg();
   if (st.mode === "sit") return announce(() => { goSignal(); setPhase("work", C.work); $("#cmd").textContent = "GO!"; });
