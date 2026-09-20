@@ -183,6 +183,8 @@
     <div class="row"><span>Rest</span><div class="step" data-k="rest" data-min="0" data-max="300" data-step="5"><button>−</button><output></output><button>+</button></div></div>
     <div class="row"><span>Rounds</span><div class="step" data-k="rounds" data-min="1" data-max="50" data-step="1"><button>−</button><output></output><button>+</button></div></div>
     <div class="row"><span>Call-out gap</span><div class="step" data-k="gap" data-min="1" data-max="15" data-step="1"><button>−</button><output></output><button>+</button></div></div>
+    <div class="row"><span>Delay before Go</span><div class="step" data-k="delay" data-min="1" data-max="10" data-step="1"><button>−</button><output></output><button>+</button></div></div>
+    <div class="sub">Each round: it names the position, says "Wrestlers ready", waits this long, then says "Go!"</div>
   </div>
 
   <div class="group">
@@ -317,7 +319,7 @@ const DEFAULT_ON = {
   bottom:  ["Hand control", "Break the grip", "Stand up", "Sit out", "Switch", "Hip heist", "Tripod", "Granby roll"]
 };
 
-const DEFAULTS = { pos: "neutral", work: 30, rest: 15, rounds: 8, gap: 4, voice: true, beeps: true, vary: true, clips: true, rate: 1.1, voiceURI: "", rotate: false, rotSet: [...ORDER] };
+const DEFAULTS = { pos: "neutral", work: 30, rest: 15, rounds: 8, gap: 4, voice: true, beeps: true, vary: true, clips: true, delay: 5, rate: 1.1, voiceURI: "", rotate: false, rotSet: [...ORDER] };
 const SIT_OPTIONS = ["One man down", "Double", "Single", "High crotch", "Half", "Headlock"];
 const SIT_DEFAULTS = { on: [...SIT_OPTIONS], custom: [], work: 60, rest: 30, rounds: 6, delay: 5, random: false };
 const clone = o => JSON.parse(JSON.stringify(o));
@@ -423,7 +425,7 @@ $("#rotSet").onclick = e => {
 };
 
 /* ---------- saved workouts ---------- */
-const SNAP = ["pos", "work", "rest", "rounds", "gap", "rotate", "rotSet", "vary"];
+const SNAP = ["pos", "work", "rest", "rounds", "gap", "delay", "rotate", "rotSet", "vary"];
 function renderSaved() {
   const box = $("#saved"); box.innerHTML = "";
   if (!S.saved.length) { box.innerHTML = '<div class="empty">Nothing saved yet.</div>'; return; }
@@ -677,7 +679,6 @@ function setPhase(name, secs) {
   $("#round").textContent = name === "ready" ? "" : `Round ${st.round} of ${C.rounds}` +
     (name === "work" && sit ? ` · ${st.order[st.round - 1]}` : name === "work" && S.rotate ? ` · ${NAMES[st.pos]}` : "");
   $("#cmd").textContent = "";
-  if (name === "work" && !sit) { $("#cmd").textContent = "GO!"; goSignal(S.rotate ? `${NAMES[st.pos]}. Go!` : "Go!"); }   // every round starts with the spoken command
   if (name === "rest") {
     beep(880, .3); say("Rest");
     if (C.rest >= 5) setTimeout(() => { if (st && st.phase === "rest" && !st.paused) playClip(); }, 1200);
@@ -686,25 +687,26 @@ function setPhase(name, secs) {
   if (name === "done") { say("Workout complete"); clearInterval(tick); releaseWake(); $("#pause").style.display = "none"; logWorkout(); }
   draw();
 }
-// Situational live: say the start position, wait, then say "Go!" and start the clock
+// Every round in every mode: name the start position, say "Wrestlers ready", wait, then say "Go!" and start the clock
 function announce(go) {
-  const label = st.order[st.round - 1], id = st.callId = (st.callId || 0) + 1;
+  const sit = st.mode === "sit", C = cfg(), id = st.callId = (st.callId || 0) + 1;
+  const pos = sit ? st.order[st.round - 1] : NAMES[st.pos];
   st.go = go; st.phase = "call";
   $("#run").className = "show call"; $("#phase").textContent = "Get set";
-  $("#clock").textContent = fmt(S.sit.work); $("#cmd").textContent = "Start from " + label;
-  $("#round").textContent = `Round ${st.round} of ${S.sit.rounds} · Wrestlers ready`;
+  $("#clock").textContent = fmt(C.work); $("#cmd").textContent = sit ? "Start from " + pos : pos;
+  $("#round").textContent = `Round ${st.round} of ${C.rounds} · Wrestlers ready`;
   let fired = false;
   const proceed = () => { if (fired || !st || st.callId !== id || st.paused) return; fired = true; go(); };
-  const text = `Start from ${label}. Wrestlers ready.`, wait = Math.max(1, S.sit.delay) * 1000;   // pause between the call and "Go"
+  const text = sit ? `Start from ${pos}. Wrestlers ready.` : `${pos}. Wrestlers ready.`, wait = Math.max(1, C.delay) * 1000;   // pause between the call and "Go"
   if (S.voice && synth) { speak(text, () => setTimeout(proceed, wait)); setTimeout(proceed, 9000 + wait); }   // backstop in case the phone never reports the speech ended
   else setTimeout(proceed, wait);
 }
-// the start signal for every round is the spoken command "Go!" (a double beep instead if the voice is off)
-function goSignal(text = "Go!") { if (S.voice && synth) speak(text); else { beep(1320, .18, .6); setTimeout(() => beep(1320, .18, .6), 240); } }
+// the start signal is the spoken command "Go!" (a double beep instead if the voice is off)
+function goSignal() { if (S.voice && synth) speak("Go!"); else { beep(1320, .18, .6); setTimeout(() => beep(1320, .18, .6), 240); } }
 function beginWork() {                                   // every round starts here
   const C = cfg();
-  if (st.mode === "sit") return announce(() => { goSignal(); setPhase("work", C.work); $("#cmd").textContent = "GO!"; });
-  setPhase("work", C.work);
+  if (st.mode !== "sit") st.pos = roundPos(st.round);
+  announce(() => { goSignal(); setPhase("work", C.work); $("#cmd").textContent = "GO!"; });
 }
 function draw() { $("#clock").textContent = st.phase === "done" ? "✓" : fmt(st.left); }
 
